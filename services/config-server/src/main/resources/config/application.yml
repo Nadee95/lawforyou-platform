@@ -1,0 +1,30 @@
+# Shared defaults delivered to every service that connects to this Config Server.
+# Services can override any key in their own <service-name>.yml file.
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,refresh,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: 1.0   # 100% in dev — reduce to 0.1 in production
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans   # Jaeger Zipkin-compatible endpoint
+
+logging:
+  level:
+    root: INFO
+    com.lawforyou: DEBUG
+
