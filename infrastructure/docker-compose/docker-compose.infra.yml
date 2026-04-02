@@ -1,7 +1,6 @@
 # Infrastructure only — start this first before any service.
 # Usage: docker-compose -f docker-compose.infra.yml up -d
 
-version: "3.9"
 
 services:
 
