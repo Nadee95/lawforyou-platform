@@ -1,0 +1,22 @@
+# Applied during integration tests — overrides main application.yml
+spring:
+  config:
+    import: ""          # Disable Config Server
+  cloud:
+    config:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+eureka:
+  client:
+    enabled: false
+
+lawforyou:
+  security:
+    jwt:
+      secret: test-secret-must-be-at-least-32-characters-long
+      expiration-ms: 3600000
+
