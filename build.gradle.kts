@@ -7,8 +7,8 @@ plugins {
 }
 
 val springCloudVersion = "2024.0.1"
-val nadeexCommonVersion = "0.1.2"
-val nadeexExceptionVersion = "0.1.3"
+val nadeexCommonVersion = "0.1.0"
+val nadeexExceptionVersion = "0.1.0"
 val nadeexLoggingVersion = "0.1.0"
 
 val githubUser: String = (findProperty("gpr.user") as String?) ?: System.getenv("GITHUB_ACTOR") ?: ""
