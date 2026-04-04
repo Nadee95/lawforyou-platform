@@ -4,13 +4,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lawforyou.user.domain.AuthResult;
 import com.lawforyou.user.dto.request.LoginRequest;
 import com.lawforyou.user.dto.request.RegisterUserRequest;
-import com.lawforyou.user.dto.response.LoginResponse;
 import com.lawforyou.user.dto.response.UserDto;
+import com.lawforyou.user.security.JwtTokenProvider;
+import com.lawforyou.user.security.SecurityConfig;
+import com.lawforyou.user.security.UserDetailsServiceImpl;
 import com.lawforyou.user.service.UserService;
+import com.nadeex.spring.exception.handler.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -23,12 +28,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AuthController.class)
+@Import({SecurityConfig.class, GlobalExceptionHandler.class})
+@ActiveProfiles("test")
 class AuthControllerTest {
 
     @Autowired MockMvc     mockMvc;
     @Autowired ObjectMapper objectMapper;
 
     @MockitoBean UserService userService;
+
+    @MockitoBean UserDetailsServiceImpl userDetailsService;
+    @MockitoBean JwtTokenProvider jwtTokenProvider;
 
     private static final UUID TENANT_ID = UUID.randomUUID();
 
@@ -54,7 +64,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void register_withInvalidEmail_returns400() throws Exception {
+    void register_withInvalidEmail_returns422() throws Exception {
         var request = new RegisterUserRequest(
                 "john.doe", "not-an-email", "Password123",
                 null, null, null);
@@ -63,7 +73,7 @@ class AuthControllerTest {
                         .header("X-Tenant-ID", TENANT_ID.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnprocessableEntity());
     }
 
     @Test

@@ -1,12 +1,12 @@
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 plugins {
-    id("org.springframework.boot") version "3.2.3" apply false
-    id("io.spring.dependency-management") version "1.1.4" apply false
+    id("org.springframework.boot") version "3.4.4" apply false
+    id("io.spring.dependency-management") version "1.1.7" apply false
     java
 }
 
-val springCloudVersion = "2023.0.0"
+val springCloudVersion = "2024.0.1"
 val nadeexCommonVersion = "0.1.2"
 val nadeexExceptionVersion = "0.1.3"
 val nadeexLoggingVersion = "0.1.0"
