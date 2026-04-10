@@ -5,8 +5,8 @@ plugins {
 
 dependencies {
     // Nadeex shared libraries
-    implementation("com.nadeex.spring:common:0.1.2")
-    implementation("com.nadeex.spring:exception:0.1.3")
+    implementation("com.nadeex.spring:common:0.1.0")
+    implementation("com.nadeex.spring:exception:0.1.0")
     implementation("com.nadeex.spring:logging:0.1.0")
 
     // Web + Validation
@@ -27,6 +27,7 @@ dependencies {
 
     // DB Migration
     implementation("org.flywaydb:flyway-core")
+    runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
     // Cache
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
@@ -60,7 +61,10 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.springframework.kafka:spring-kafka-test")
+    testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.testcontainers:junit-jupiter")
+//    testImplementation("org.testcontainers:testcontainers")
+//    testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.4")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:kafka")
 }
@@ -71,6 +75,10 @@ tasks.named<Jar>("jar") {
 
 tasks.test {
     finalizedBy(tasks.jacocoTestReport)
+    if (System.getenv("DOCKER_HOST") == null &&
+        System.getProperty("os.name", "").startsWith("Windows", ignoreCase = true)) {
+        environment("DOCKER_HOST", "tcp://localhost:2375")   // ← was npipe:////./pipe/dockerDesktopLinuxEngine
+    }
 }
 
 tasks.jacocoTestReport {

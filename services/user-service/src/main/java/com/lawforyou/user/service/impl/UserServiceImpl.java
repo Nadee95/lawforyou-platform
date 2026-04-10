@@ -73,7 +73,7 @@ public class UserServiceImpl implements UserService {
                 .roles(Set.of(clientRole))
                 .build();
 
-        User saved = userRepository.save(user);
+        User saved = userRepository.saveAndFlush(user);
         log.info("Registered user {} in tenant {}", saved.getId(), tenantId);
 
         eventProducer.publishUserCreated(saved);
@@ -151,14 +151,14 @@ public class UserServiceImpl implements UserService {
             user.setEmail(request.email());
         }
 
-        return userMapper.toDto(userRepository.save(user));
+        return userMapper.toDto(userRepository.saveAndFlush(user));
     }
 
     @Override
     public UserDto setActive(UUID userId, UUID tenantId, boolean active) {
         User user = requireUser(userId, tenantId);
         user.setActive(active);
-        return userMapper.toDto(userRepository.save(user));
+        return userMapper.toDto(userRepository.saveAndFlush(user));
     }
 
     // ── Role management ───────────────────────────────────────────────────────
@@ -168,7 +168,7 @@ public class UserServiceImpl implements UserService {
         User user = requireUser(userId, tenantId);
         Role role = requireRole(roleId);
         user.addRole(role);
-        return userMapper.toDto(userRepository.save(user));
+        return userMapper.toDto(userRepository.saveAndFlush(user));
     }
 
     @Override
@@ -176,7 +176,7 @@ public class UserServiceImpl implements UserService {
         User user = requireUser(userId, tenantId);
         Role role = requireRole(roleId);
         user.removeRole(role);
-        return userMapper.toDto(userRepository.save(user));
+        return userMapper.toDto(userRepository.saveAndFlush(user));
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
