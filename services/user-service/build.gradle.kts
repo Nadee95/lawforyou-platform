@@ -63,8 +63,6 @@ dependencies {
     testImplementation("org.springframework.kafka:spring-kafka-test")
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.testcontainers:junit-jupiter")
-//    testImplementation("org.testcontainers:testcontainers")
-//    testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.4")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:kafka")
 }
