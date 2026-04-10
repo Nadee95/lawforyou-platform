@@ -75,10 +75,6 @@ tasks.named<Jar>("jar") {
 
 tasks.test {
     finalizedBy(tasks.jacocoTestReport)
-    if (System.getenv("DOCKER_HOST") == null &&
-        System.getProperty("os.name", "").startsWith("Windows", ignoreCase = true)) {
-        environment("DOCKER_HOST", "tcp://localhost:2375")   // ← was npipe:////./pipe/dockerDesktopLinuxEngine
-    }
 }
 
 tasks.jacocoTestReport {
