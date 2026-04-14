@@ -14,6 +14,7 @@ import com.lawforyou.user.security.JwtProperties;
 import com.lawforyou.user.security.JwtTokenProvider;
 import com.lawforyou.user.service.impl.UserServiceImpl;
 import com.nadeex.spring.exception.ConflictException;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -40,6 +41,7 @@ class UserServiceTest {
     @Mock JwtTokenProvider  jwtTokenProvider;
     @Mock JwtProperties     jwtProperties;
     @Mock UserEventProducer eventProducer;
+    @Mock EntityManager     entityManager;
 
     @InjectMocks UserServiceImpl userService;
 
@@ -82,11 +84,11 @@ class UserServiceTest {
         when(roleRepository.findByNameAndTenantIdIsNull(SystemRole.CLIENT.roleName()))
                 .thenReturn(Optional.of(clientRole));
         when(passwordEncoder.encode(any())).thenReturn("hashed");
-        when(userRepository.save(any())).thenReturn(savedUser);
+        when(userRepository.saveAndFlush(any())).thenReturn(savedUser);
 
         userService.register(request, TENANT_ID);
-
-        verify(userRepository).save(any(User.class));
+        verify(entityManager).refresh(savedUser);
+        verify(userRepository).saveAndFlush(any(User.class));
         verify(eventProducer).publishUserCreated(savedUser);
     }
 

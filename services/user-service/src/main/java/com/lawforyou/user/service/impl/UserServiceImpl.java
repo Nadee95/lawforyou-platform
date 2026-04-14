@@ -20,6 +20,7 @@ import com.nadeex.spring.common.exception.ErrorCode;
 import com.nadeex.spring.common.response.PagedResponse;
 import com.nadeex.spring.exception.ConflictException;
 import com.nadeex.spring.exception.ResourceNotFoundException;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -46,6 +47,7 @@ public class UserServiceImpl implements UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties    jwtProperties;
     private final UserEventProducer eventProducer;
+    private final EntityManager     entityManager;
 
     // ── Register ─────────────────────────────────────────────────────────────
 
@@ -74,6 +76,12 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         User saved = userRepository.saveAndFlush(user);
+
+        // Hibernate @TenantId is injected into the DB column but NOT written
+        // back to the Java field. Refresh forces a SELECT that populates all
+        // server-assigned fields: tenantId, createdAt, updatedAt, etc.
+        entityManager.refresh(saved);
+
         log.info("Registered user {} in tenant {}", saved.getId(), tenantId);
 
         eventProducer.publishUserCreated(saved);
