@@ -1,16 +1,17 @@
 package com.lawforyou.user.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lawforyou.user.domain.AuthResult;
 import com.lawforyou.user.dto.request.LoginRequest;
 import com.lawforyou.user.dto.request.RegisterUserRequest;
 import com.lawforyou.user.dto.request.UpdateUserRequest;
 import com.lawforyou.user.dto.response.UserDto;
-import com.lawforyou.user.entity.Permission;
-import com.lawforyou.user.entity.Role;
-import com.lawforyou.user.entity.SystemRole;
-import com.lawforyou.user.entity.User;
-import com.lawforyou.user.kafka.UserEventProducer;
+import com.lawforyou.user.entity.*;
+import com.lawforyou.user.event.UserCreatedEvent;
+import com.lawforyou.user.event.UserUpdatedEvent;
 import com.lawforyou.user.mapper.UserMapper;
+import com.lawforyou.user.repository.OutboxEventRepository;
 import com.lawforyou.user.repository.RoleRepository;
 import com.lawforyou.user.repository.UserRepository;
 import com.lawforyou.user.security.JwtProperties;
@@ -19,7 +20,9 @@ import com.lawforyou.user.service.UserService;
 import com.nadeex.spring.common.exception.ErrorCode;
 import com.nadeex.spring.common.response.PagedResponse;
 import com.nadeex.spring.exception.ConflictException;
+import com.nadeex.spring.exception.EventSerializationException;
 import com.nadeex.spring.exception.ResourceNotFoundException;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -45,12 +48,15 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder  passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties    jwtProperties;
-    private final UserEventProducer eventProducer;
+    private final EntityManager     entityManager;
+    private final ObjectMapper      objectMapper;
+    private final OutboxEventRepository outboxEventRepository;
+
 
     // ── Register ─────────────────────────────────────────────────────────────
 
     @Override
-    public UserDto register(RegisterUserRequest request, UUID tenantId) {
+    public UserDto register(RegisterUserRequest request, UUID tenantId)  {
         if (userRepository.existsByEmailAndTenantId(request.email(), tenantId)) {
             throw new ConflictException("User email", request.email());
         }
@@ -74,9 +80,23 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         User saved = userRepository.saveAndFlush(user);
+
+        // Hibernate @TenantId is injected into the DB column but NOT written
+        // back to the Java field. Refresh forces a SELECT that populates all
+        // server-assigned fields: tenantId, createdAt, updatedAt, etc.
+        entityManager.refresh(saved);
+
+        // Instead of publishing the event directly, save it to the outbox table.
+        outboxEventRepository.save(OutboxEvent.builder()
+                .aggregateType("User")
+                .aggregateId(saved.getId().toString())
+                .eventType(UserCreatedEvent.class.getName())
+                .payload(toJson(userMapper.toDto(saved)))
+                .status("PENDING")
+                .build());
+
         log.info("Registered user {} in tenant {}", saved.getId(), tenantId);
 
-        eventProducer.publishUserCreated(saved);
         return userMapper.toDto(saved);
     }
 
@@ -151,14 +171,38 @@ public class UserServiceImpl implements UserService {
             user.setEmail(request.email());
         }
 
-        return userMapper.toDto(userRepository.saveAndFlush(user));
+        User saved = userRepository.saveAndFlush(user);
+
+        // Refresh forces a SELECT that populates all server-assigned field : updatedAt
+        entityManager.refresh(saved);
+
+        outboxEventRepository.save(OutboxEvent.builder()
+                .aggregateType("User")
+                .aggregateId(saved.getId().toString())
+                .eventType(UserUpdatedEvent.class.getName())
+                .payload(toJson(userMapper.toDto(saved)))
+                .status("PENDING")
+                .build());
+
+        return userMapper.toDto(saved);
     }
 
     @Override
     public UserDto setActive(UUID userId, UUID tenantId, boolean active) {
         User user = requireUser(userId, tenantId);
         user.setActive(active);
-        return userMapper.toDto(userRepository.saveAndFlush(user));
+
+        User saved = userRepository.saveAndFlush(user);
+
+        outboxEventRepository.save(OutboxEvent.builder()
+                .aggregateType("User")
+                .aggregateId(saved.getId().toString())
+                .eventType(UserUpdatedEvent.class.getName())
+                .payload(toJson(userMapper.toDto(saved)))
+                .status("PENDING")
+                .build());
+
+        return userMapper.toDto(saved);
     }
 
     // ── Role management ───────────────────────────────────────────────────────
@@ -207,5 +251,15 @@ public class UserServiceImpl implements UserService {
         return PagedResponse.of(content, pageable.getPageNumber(),
                 pageable.getPageSize(), page.getTotalElements());
     }
+
+    private String toJson(Object obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException ex) {
+            throw new EventSerializationException(
+                    "Failed to serialise outbox event: " + obj.getClass().getSimpleName(), ex);
+        }
+    }
+
 }
 
