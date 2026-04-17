@@ -60,3 +60,7 @@ lawforyou:
       secret: local-dev-secret-change-in-production-must-be-256-bits
       expiration-ms: 86400000
 
+app:
+  outbox:
+    relay-delay-ms: 5000   # how often OutboxRelay polls for PENDING events (ms)
+
