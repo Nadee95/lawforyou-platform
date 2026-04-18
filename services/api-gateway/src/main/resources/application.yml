@@ -1,0 +1,101 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: false
+
+    gateway:
+      # ── Global CORS ─────────────────────────────────────────────────────────
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: "*"
+            allowed-methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+            allowed-headers: "*"
+            exposed-headers: "X-Correlation-ID"
+
+      # ── Routes ──────────────────────────────────────────────────────────────
+      routes:
+
+        # ── User Service — public auth endpoints (no JWT required) ───────────
+        - id: user-service-auth
+          uri: lb://user-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: "#{@tenantKeyResolver}"
+
+        # ── User Service — secured user management endpoints ─────────────────
+        - id: user-service-users
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@tenantKeyResolver}"
+
+        # ── Case Service ──────────────────────────────────────────────────────
+        - id: case-service
+          uri: lb://case-service
+          predicates:
+            - Path=/api/cases/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@tenantKeyResolver}"
+
+  # ── Redis (rate limiting + future token blacklist) ─────────────────────────
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+# ── Eureka ──────────────────────────────────────────────────────────────────
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+# ── JWT ──────────────────────────────────────────────────────────────────────
+app:
+  jwt:
+    # Must match the secret used by user-service and case-service
+    secret: ${JWT_SECRET:lawforyou-dev-secret-key-change-in-production-min32chars}
+    expiration-ms: 86400000
+
+# ── Actuator ─────────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.lawforyou.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+
