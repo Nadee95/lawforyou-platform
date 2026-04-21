@@ -130,9 +130,13 @@ public class CaseServiceImpl implements CaseService {
     public CaseDto assignLawyer(UUID caseId, UUID tenantId, AssignLawyerRequest request, String assignedBy) {
         Case c = requireCase(caseId, tenantId);
 
-        // Deactivate current assignment (if any)
+        // Deactivate current assignment (if any) and flush immediately
+        // so the unique constraint on active assignments is released before the new insert.
         caseAssignmentRepository.findByCaseIdAndActiveTrue(caseId)
-                .ifPresent(a -> a.setActive(false));
+                .ifPresent(a -> {
+                    a.setActive(false);
+                    caseAssignmentRepository.saveAndFlush(a);
+                });
 
         CaseAssignment assignment = CaseAssignment.builder()
                 .caseId(caseId)

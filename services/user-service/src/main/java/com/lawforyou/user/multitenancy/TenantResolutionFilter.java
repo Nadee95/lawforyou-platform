@@ -1,6 +1,6 @@
 package com.lawforyou.user.multitenancy;
 
-import com.lawforyou.user.security.JwtTokenProvider;
+import com.nadeex.spring.security.token.JwtTokenProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -80,7 +80,7 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(authHeader) && authHeader.startsWith(BEARER_PREFIX)) {
             String token = authHeader.substring(BEARER_PREFIX.length());
             try {
-                if (jwtTokenProvider.validateToken(token)) {
+                if (jwtTokenProvider.isTokenValid(token)) {
                     return jwtTokenProvider.getTenantId(token);
                 }
             } catch (Exception e) {

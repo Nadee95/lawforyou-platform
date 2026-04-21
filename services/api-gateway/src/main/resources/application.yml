@@ -73,11 +73,10 @@ eureka:
   instance:
     prefer-ip-address: true
 
-# ── JWT ──────────────────────────────────────────────────────────────────────
+# ── JWT — served by Config Server in production; local fallback via ${JWT_SECRET} env var ───
 app:
   jwt:
-    # Must match the secret used by user-service and case-service
-    secret: ${JWT_SECRET:lawforyou-dev-secret-key-change-in-production-min32chars}
+    secret: ${JWT_SECRET:lawforyou-dev-secret-change-in-production-must-be-32chars}
     expiration-ms: 86400000
 
 # ── Actuator ─────────────────────────────────────────────────────────────────

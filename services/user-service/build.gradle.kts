@@ -8,18 +8,15 @@ dependencies {
     implementation("com.nadeex.spring:common:0.1.0")
     implementation("com.nadeex.spring:exception:0.1.0")
     implementation("com.nadeex.spring:logging:0.1.0")
+    implementation("com.nadeex.spring:security:0.1.0")
 
     // Web + Validation
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
-    // Security
+    // Security (starter needed for DaoAuthenticationProvider, PasswordEncoder, etc.)
     implementation("org.springframework.boot:spring-boot-starter-security")
 
-    // JWT
-    implementation("io.jsonwebtoken:jjwt-api:0.12.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
 
     // Persistence
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")

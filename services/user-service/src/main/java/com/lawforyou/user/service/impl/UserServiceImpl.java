@@ -14,8 +14,8 @@ import com.lawforyou.user.mapper.UserMapper;
 import com.lawforyou.user.repository.OutboxEventRepository;
 import com.lawforyou.user.repository.RoleRepository;
 import com.lawforyou.user.repository.UserRepository;
-import com.lawforyou.user.security.JwtProperties;
-import com.lawforyou.user.security.JwtTokenProvider;
+import com.nadeex.spring.security.properties.SecurityProperties;
+import com.nadeex.spring.security.token.JwtTokenProvider;
 import com.lawforyou.user.service.UserService;
 import com.nadeex.spring.common.exception.ErrorCode;
 import com.nadeex.spring.common.response.PagedResponse;
@@ -34,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -47,7 +46,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper       userMapper;
     private final PasswordEncoder  passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-    private final JwtProperties    jwtProperties;
+    private final SecurityProperties    jwtProperties;
     private final EntityManager     entityManager;
     private final ObjectMapper      objectMapper;
     private final OutboxEventRepository outboxEventRepository;
@@ -118,13 +117,13 @@ public class UserServiceImpl implements UserService {
             return new AuthResult.Failure("Invalid credentials", ErrorCode.UNAUTHORIZED);
         }
 
-        Set<String> roles       = user.getRoles().stream().map(Role::getName).collect(Collectors.toSet());
-        Set<String> permissions = user.getRoles().stream()
+        List<String> roles       = user.getRoles().stream().map(Role::getName).toList();
+        List<String> permissions = user.getRoles().stream()
                 .filter(Role::isActive)
                 .flatMap(r -> r.getPermissions().stream())
                 .filter(Permission::isActive)
                 .map(Permission::getName)
-                .collect(Collectors.toSet());
+                .toList();
 
         String token = jwtTokenProvider.generateToken(
                 user.getId(), tenantId, user.getUsername(), roles, permissions);

@@ -7,7 +7,7 @@ import com.lawforyou.cases.dto.request.CreateCaseRequest;
 import com.lawforyou.cases.dto.request.UpdateCaseRequest;
 import com.lawforyou.cases.entity.CaseStatus;
 import com.lawforyou.cases.entity.CaseType;
-import com.lawforyou.cases.security.JwtTokenProvider;
+import com.nadeex.spring.security.token.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;

@@ -16,8 +16,8 @@ import com.lawforyou.user.mapper.UserMapper;
 import com.lawforyou.user.repository.OutboxEventRepository;
 import com.lawforyou.user.repository.RoleRepository;
 import com.lawforyou.user.repository.UserRepository;
-import com.lawforyou.user.security.JwtProperties;
-import com.lawforyou.user.security.JwtTokenProvider;
+import com.nadeex.spring.security.properties.SecurityProperties;
+import com.nadeex.spring.security.token.JwtTokenProvider;
 import com.lawforyou.user.service.impl.UserServiceImpl;
 import com.nadeex.spring.exception.ConflictException;
 import jakarta.persistence.EntityManager;
@@ -49,7 +49,7 @@ class UserServiceTest {
     @Mock ObjectMapper      objectMapper;
     @Mock PasswordEncoder   passwordEncoder;
     @Mock JwtTokenProvider  jwtTokenProvider;
-    @Mock JwtProperties     jwtProperties;
+    @Mock SecurityProperties jwtProperties;
     @Mock EntityManager     entityManager;
 
 

@@ -25,8 +25,8 @@ import java.util.UUID;
  *   <li>Roles are prefixed with {@code ROLE_} (e.g. {@code ROLE_ADMIN})</li>
  *   <li>Permissions are added directly (e.g. {@code USER_READ})</li>
  * </ul>
- * This lets both {@code hasRole('ADMIN')} and {@code hasAuthority('USER_READ')} work
- * in {@code @PreAuthorize} expressions.</p>
+ * Used by {@code DaoAuthenticationProvider} — must return a {@code UserDetails}
+ * with the stored password hash so password verification can succeed.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -52,12 +52,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     private List<GrantedAuthority> buildAuthorities(User user) {
         List<GrantedAuthority> authorities = new ArrayList<>();
-
         for (Role role : user.getRoles()) {
             if (!role.isActive()) continue;
-            // Spring Security role convention: ROLE_ prefix
             authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
-            // Add individual permissions as authorities
             for (Permission permission : role.getPermissions()) {
                 if (permission.isActive()) {
                     authorities.add(new SimpleGrantedAuthority(permission.getName()));
@@ -67,4 +64,3 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return authorities;
     }
 }
-

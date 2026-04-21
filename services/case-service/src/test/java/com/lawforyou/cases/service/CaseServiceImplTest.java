@@ -212,11 +212,11 @@ class CaseServiceImplTest {
 
         var dto = caseService.assignLawyer(caseId, TENANT_ID, request, CREATED_BY);
 
-        // Previous assignment deactivated
+        // Previous assignment deactivated and flushed; then new assignment saved and flushed
         assertThat(existingAssignment.isActive()).isFalse();
 
-        // New assignment saved
-        verify(caseAssignmentRepository).saveAndFlush(any(CaseAssignment.class));
+        // New assignment saved (saveAndFlush called twice: deactivate old + insert new)
+        verify(caseAssignmentRepository, times(2)).saveAndFlush(any(CaseAssignment.class));
 
         // Outbox event written
         var captor = ArgumentCaptor.forClass(OutboxEvent.class);
