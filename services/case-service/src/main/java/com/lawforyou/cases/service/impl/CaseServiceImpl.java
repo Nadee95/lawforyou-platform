@@ -13,6 +13,7 @@ import com.lawforyou.cases.repository.CaseRepository;
 import com.lawforyou.cases.repository.OutboxEventRepository;
 import com.lawforyou.cases.service.CaseService;
 import com.nadeex.spring.common.response.PagedResponse;
+import com.nadeex.spring.exception.EventSerializationException;
 import com.nadeex.spring.exception.ResourceNotFoundException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -216,7 +217,7 @@ public class CaseServiceImpl implements CaseService {
         try {
             return objectMapper.writeValueAsString(obj);
         } catch (JsonProcessingException ex) {
-            throw new RuntimeException("Failed to serialize outbox event: " + obj.getClass().getSimpleName(), ex);
+            throw new EventSerializationException("Failed to serialize outbox event: " + obj.getClass().getSimpleName(), ex);
         }
     }
 }
