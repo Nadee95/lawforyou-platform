@@ -66,7 +66,8 @@ public class UserController {
 
     @Operation(summary = "Get a user by id")
     @GetMapping("/{userId}")
-    @PreAuthorize("hasAuthority('USER_READ') or #userId.toString() == authentication.name")
+    @PreAuthorize("hasAuthority('USER_READ') or #userId.toString() == authentication.principal.userId.toString()")
+
     public ResponseEntity<ApiResponse<UserDto>> getUser(
             @RequestHeader("X-Tenant-ID") UUID tenantId,
             @PathVariable UUID userId) {
@@ -76,7 +77,7 @@ public class UserController {
 
     @Operation(summary = "Update own profile (partial update)")
     @PatchMapping("/{userId}")
-    @PreAuthorize("#userId.toString() == authentication.name or hasAuthority('USER_UPDATE')")
+    @PreAuthorize("#userId.toString() == authentication.principal.userId.toString() or hasAuthority('USER_UPDATE')")
     public ResponseEntity<ApiResponse<UserDto>> updateUser(
             @RequestHeader("X-Tenant-ID") UUID tenantId,
             @PathVariable UUID userId,

@@ -32,11 +32,5 @@ spring:
         spring.json.trusted.packages: "com.lawforyou.user.event"
 
 server:
-  port: 8081
-
-lawforyou:
-  security:
-    jwt:
-      secret: change-me-in-production-must-be-at-least-256-bits-long
-      expiration-ms: 86400000   # 24 hours
+  port: 8081   # 24 hours
 

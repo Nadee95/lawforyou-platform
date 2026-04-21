@@ -28,3 +28,9 @@ logging:
     root: INFO
     com.lawforyou: DEBUG
 
+# ── JWT — ONE source of truth for all services ───────────────────────────────
+app:
+  jwt:
+    secret: ${JWT_SECRET:lawforyou-dev-secret-change-in-production-must-be-32chars}
+    expiration-ms: 86400000   # 24 hours
+

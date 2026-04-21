@@ -13,13 +13,10 @@ eureka:
   client:
     enabled: false
 
-lawforyou:
-  security:
-    jwt:
-      secret: test-secret-must-be-at-least-32-characters-long
-      expiration-ms: 3600000
-
 app:
+  jwt:
+    secret: test-secret-must-be-at-least-32-characters-long
+    expiration-ms: 3600000
   outbox:
     relay-delay-ms: 500
 
