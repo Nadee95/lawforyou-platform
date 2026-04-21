@@ -1,0 +1,25 @@
+spring:
+  config:
+    import: ""
+  cloud:
+    config:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+eureka:
+  client:
+    enabled: false
+
+lawforyou:
+  security:
+    jwt:
+      secret: test-secret-must-be-at-least-32-characters-long
+      expiration-ms: 3600000
+
+app:
+  outbox:
+    relay-delay-ms: 500
+
