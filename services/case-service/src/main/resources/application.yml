@@ -53,13 +53,12 @@ management:
     health:
       show-details: always
 
-lawforyou:
-  security:
-    jwt:
-      secret: local-dev-secret-change-in-production-must-be-256-bits
-      expiration-ms: 86400000
-
+# JWT config is served by Config Server (config-server/resources/config/application.yml).
+# For local dev without Config Server, set env var: JWT_SECRET=lawforyou-dev-secret-change-in-production-must-be-32chars
 app:
+  jwt:
+    secret: ${JWT_SECRET:lawforyou-dev-secret-change-in-production-must-be-32chars}
+    expiration-ms: 86400000
   outbox:
     relay-delay-ms: 5000
 

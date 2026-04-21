@@ -5,7 +5,8 @@ import com.lawforyou.user.domain.AuthResult;
 import com.lawforyou.user.dto.request.LoginRequest;
 import com.lawforyou.user.dto.request.RegisterUserRequest;
 import com.lawforyou.user.dto.response.UserDto;
-import com.lawforyou.user.security.JwtTokenProvider;
+import com.nadeex.spring.security.config.SecurityAutoConfiguration;
+import com.nadeex.spring.security.token.JwtTokenProvider;
 import com.lawforyou.user.security.SecurityConfig;
 import com.lawforyou.user.security.UserDetailsServiceImpl;
 import com.lawforyou.user.service.UserService;
@@ -13,6 +14,7 @@ import com.nadeex.spring.exception.handler.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -28,6 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AuthController.class)
+@ImportAutoConfiguration(SecurityAutoConfiguration.class)
 @Import({SecurityConfig.class, GlobalExceptionHandler.class})
 @ActiveProfiles("test")
 class AuthControllerTest {
@@ -37,8 +40,8 @@ class AuthControllerTest {
 
     @MockitoBean UserService userService;
 
-    @MockitoBean UserDetailsServiceImpl userDetailsService;
-    @MockitoBean JwtTokenProvider jwtTokenProvider;
+    @MockitoBean UserDetailsServiceImpl         userDetailsService;
+    @MockitoBean JwtTokenProvider               jwtTokenProvider;
 
     private static final UUID TENANT_ID = UUID.randomUUID();
 
