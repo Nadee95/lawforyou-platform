@@ -89,10 +89,11 @@ class CaseControllerIT {
 
     /**
      * Generates a JWT signed with the test secret (from application-test.yml).
-     * case-service validates but does not issue tokens — we build them directly here.
+     * Includes all case-related permissions so @PreAuthorize checks pass.
      */
     private String jwtFor(UUID userId, List<String> roles) {
-        return jwtTokenProvider.generateToken(userId, TENANT_ID, "testuser", roles, List.of());
+        return jwtTokenProvider.generateToken(userId, TENANT_ID, "testuser", roles,
+                List.of("CASE_CREATE", "CASE_READ", "CASE_UPDATE", "CASE_ASSIGN"));
     }
 
     private CreateCaseRequest uniqueCreateRequest() {

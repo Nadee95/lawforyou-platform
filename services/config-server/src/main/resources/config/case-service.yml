@@ -4,7 +4,7 @@
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/case_db
+    url: jdbc:postgresql://localhost:5432/case_db
     username: lawforyou
     password: lawforyou
     driver-class-name: org.postgresql.Driver
