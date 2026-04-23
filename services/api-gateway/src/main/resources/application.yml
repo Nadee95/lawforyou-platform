@@ -4,12 +4,10 @@ server:
 spring:
   application:
     name: api-gateway
+  config:
+    import: "optional:configserver:http://localhost:8888"
 
   cloud:
-    config:
-      uri: http://localhost:8888
-      fail-fast: false
-
     gateway:
       # ── Global CORS ─────────────────────────────────────────────────────────
       globalcors:
@@ -57,6 +55,30 @@ spring:
               args:
                 redis-rate-limiter.replenishRate: 30
                 redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@tenantKeyResolver}"
+
+        # ── Document Service ──────────────────────────────────────────────────
+        - id: document-service
+          uri: lb://document-service
+          predicates:
+            - Path=/api/v1/documents/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@tenantKeyResolver}"
+
+        # ── Communication Service — manual notification trigger ────────────────
+        - id: communication-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
                 key-resolver: "#{@tenantKeyResolver}"
 
   # ── Redis (rate limiting + future token blacklist) ─────────────────────────

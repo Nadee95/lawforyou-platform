@@ -1,0 +1,31 @@
+# Config Server — document-service overrides
+# Merged with config/application.yml (shared defaults) at runtime.
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/document_db
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
+
+server:
+  port: 8083
+
+app:
+  minio:
+    endpoint: http://localhost:9000
+    access-key: minioadmin
+    secret-key: minioadmin
+    bucket-name: lawforyou-documents
+  outbox:
+    relay-delay-ms: 5000
+

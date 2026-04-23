@@ -22,7 +22,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OutboxRelay {
 
-    private static final String TOPIC             = "user-events";
     private static final int    MAX_RETRIES       = 5;
     private static final String STATUS_PENDING    = "PENDING";
     private static final String STATUS_PROCESSED  = "PROCESSED";
@@ -59,7 +58,7 @@ public class OutboxRelay {
                         event.getPayload(),
                         Class.forName(event.getEventType()));
 
-                kafkaTemplate.send(TOPIC, event.getAggregateId(), payload).get(); // sync
+                kafkaTemplate.send(event.getTopic(), event.getAggregateId(), payload).get(); // sync
 
                 event.setStatus(STATUS_PROCESSED);
                 event.setProcessedAt(Instant.now());

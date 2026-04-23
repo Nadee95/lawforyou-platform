@@ -1,0 +1,22 @@
+﻿# Config Server — communication-service overrides
+# Merged with config/application.yml (shared defaults) at runtime.
+# NOTE: communication-service is NestJS — it does NOT connect to this Config Server directly.
+#       These values are documented here as the canonical reference and are mirrored
+#       in the service's .env / Kubernetes ConfigMap.
+server:
+  port: 8084
+app:
+  kafka:
+    brokers: localhost:9092
+    group-id: communication-service
+    client-id: communication-service
+  smtp:
+    host: localhost
+    port: 1025       # Mailhog in local dev
+    secure: false
+    from: noreply@lawforyou.dev
+  # Twilio — leave blank in dev (stub mode)
+  twilio:
+    account-sid: ""
+    auth-token: ""
+    from-number: ""

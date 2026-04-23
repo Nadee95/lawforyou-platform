@@ -1,0 +1,23 @@
+spring:
+  config:
+    import: ""
+  cloud:
+    config:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false
+
+app:
+  jwt:
+    secret: test-secret-must-be-at-least-32-characters-long
+    expiration-ms: 3600000
+  minio:
+    endpoint: http://localhost:9000  # overridden by @DynamicPropertySource in IT
+    access-key: minioadmin
+    secret-key: minioadmin
+    bucket-name: lawforyou-documents-test
+  outbox:
+    relay-delay-ms: 500
+

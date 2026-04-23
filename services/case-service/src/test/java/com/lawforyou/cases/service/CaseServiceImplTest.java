@@ -107,6 +107,7 @@ class CaseServiceImplTest {
 
         OutboxEvent outbox = captor.getValue();
         assertThat(outbox.getEventType()).isEqualTo(CaseCreatedEvent.class.getName());
+        assertThat(outbox.getTopic()).isEqualTo("case-events");
         assertThat(outbox.getStatus()).isEqualTo("PENDING");
         assertThat(outbox.getAggregateId()).isEqualTo(savedCase.getId().toString());
         assertThat(outbox.getAggregateType()).isEqualTo("Case");
@@ -222,6 +223,7 @@ class CaseServiceImplTest {
         var captor = ArgumentCaptor.forClass(OutboxEvent.class);
         verify(outboxEventRepository).save(captor.capture());
         assertThat(captor.getValue().getEventType()).isEqualTo(CaseAssignedEvent.class.getName());
+        assertThat(captor.getValue().getTopic()).isEqualTo("case-events");
         assertThat(captor.getValue().getStatus()).isEqualTo("PENDING");
 
         assertThat(dto.activeLawyerId()).isEqualTo(LAWYER_ID);
@@ -280,6 +282,7 @@ class CaseServiceImplTest {
         var captor = ArgumentCaptor.forClass(OutboxEvent.class);
         verify(outboxEventRepository).save(captor.capture());
         assertThat(captor.getValue().getEventType()).isEqualTo(CaseClosedEvent.class.getName());
+        assertThat(captor.getValue().getTopic()).isEqualTo("case-events");
         assertThat(captor.getValue().getStatus()).isEqualTo("PENDING");
     }
 
@@ -299,6 +302,7 @@ class CaseServiceImplTest {
         var captor = ArgumentCaptor.forClass(OutboxEvent.class);
         verify(outboxEventRepository).save(captor.capture());
         assertThat(captor.getValue().getEventType()).isEqualTo(CaseClosedEvent.class.getName());
+        assertThat(captor.getValue().getTopic()).isEqualTo("case-events");
     }
 }
 
