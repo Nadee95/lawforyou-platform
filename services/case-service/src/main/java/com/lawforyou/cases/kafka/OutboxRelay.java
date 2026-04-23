@@ -15,14 +15,14 @@ import java.util.List;
 
 /**
  * Polls {@code outbox_events} for PENDING events and publishes them to Kafka.
- * Mirrors user-service OutboxRelay exactly — only TOPIC differs.
+ * Uses {@code event.getTopic()} so a single relay handles multiple topics
+ * (e.g. {@code case-events}, future {@code notification-events}).
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OutboxRelay {
 
-    private static final String TOPIC            = "case-events";
     private static final int    MAX_RETRIES      = 5;
     private static final String STATUS_PENDING   = "PENDING";
     private static final String STATUS_PROCESSED = "PROCESSED";
@@ -55,7 +55,7 @@ public class OutboxRelay {
                         event.getPayload(),
                         Class.forName(event.getEventType()));
 
-                kafkaTemplate.send(TOPIC, event.getAggregateId(), payload).get();
+                kafkaTemplate.send(event.getTopic(), event.getAggregateId(), payload).get();
 
                 event.setStatus(STATUS_PROCESSED);
                 event.setProcessedAt(Instant.now());

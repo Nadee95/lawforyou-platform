@@ -1,0 +1,54 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: document-service
+  config:
+    import: "optional:configserver:http://localhost:8888"
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/document_db
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# JWT config served by Config Server. Fallback for local dev without Config Server.
+app:
+  jwt:
+    secret: ${JWT_SECRET:lawforyou-dev-secret-change-in-production-must-be-32chars}
+    expiration-ms: 86400000
+  minio:
+    endpoint: http://localhost:9000
+    access-key: minioadmin
+    secret-key: minioadmin
+    bucket-name: lawforyou-documents
+  outbox:
+    relay-delay-ms: 5000
+

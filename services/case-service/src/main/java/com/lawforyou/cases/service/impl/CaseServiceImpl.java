@@ -207,10 +207,14 @@ public class CaseServiceImpl implements CaseService {
         );
     }
 
-    private <T> void saveOutboxEvent(String aggregateType, String aggregateId, Class<T> eventClass, T event) {
+    private static final String CASE_EVENTS_TOPIC = "case-events";
+
+    private <T> void saveOutboxEvent(String aggregateType, String aggregateId,
+                                     Class<T> eventClass, T event) {
         outboxEventRepository.save(OutboxEvent.builder()
                 .aggregateType(aggregateType)
                 .aggregateId(aggregateId)
+                .topic(CASE_EVENTS_TOPIC)
                 .eventType(eventClass.getName())
                 .payload(toJson(event))
                 .status("PENDING")

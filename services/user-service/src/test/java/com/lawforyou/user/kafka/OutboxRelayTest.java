@@ -76,6 +76,7 @@ class OutboxRelayTest {
                 .id(UUID.randomUUID())
                 .aggregateType("User")
                 .aggregateId(event.userId().toString())
+                .topic("user-events")                         // topic now required
                 .eventType(UserCreatedEvent.class.getName())  // must match payload type
                 .payload(objectMapper.writeValueAsString(event))
                 .status("PENDING")
@@ -129,6 +130,7 @@ class OutboxRelayTest {
         assertThat(outboxEvent.getStatus()).isEqualTo("PROCESSED");
         assertThat(outboxEvent.getProcessedAt()).isNotNull();
         assertThat(outboxEvent.getRetryCount()).isZero();
+        // relay now uses event.getTopic() — must equal the topic set on the outbox event
         verify(kafkaTemplate).send(eq("user-events"), anyString(), any(UserCreatedEvent.class));
     }
 
@@ -190,6 +192,7 @@ class OutboxRelayTest {
 
         assertThat(outbox1.getStatus()).isEqualTo("PROCESSED");
         assertThat(outbox2.getStatus()).isEqualTo("PROCESSED");
+        // both events carry topic "user-events"; relay must publish to that topic for each
         verify(kafkaTemplate, times(2)).send(eq("user-events"), anyString(), any(UserCreatedEvent.class));
     }
 }

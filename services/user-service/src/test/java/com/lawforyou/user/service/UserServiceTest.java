@@ -7,6 +7,7 @@ import com.lawforyou.user.dto.request.LoginRequest;
 import com.lawforyou.user.dto.request.RegisterUserRequest;
 import com.lawforyou.user.dto.request.UpdateUserRequest;
 import com.lawforyou.user.entity.OutboxEvent;
+import com.lawforyou.user.event.EmailNotificationEvent;
 import com.lawforyou.user.event.UserCreatedEvent;
 import com.lawforyou.user.event.UserUpdatedEvent;
 import com.lawforyou.user.entity.Role;
@@ -29,6 +30,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -105,11 +107,25 @@ class UserServiceTest {
         verify(entityManager).refresh(savedUser);
         verify(userRepository).saveAndFlush(any(User.class));
 
+        // register() saves TWO outbox events: UserCreatedEvent + welcome EmailNotificationEvent
         var captor = ArgumentCaptor.forClass(OutboxEvent.class);
-        verify(outboxEventRepository).save(captor.capture());
-        assertThat(captor.getValue().getEventType()).isEqualTo(UserCreatedEvent.class.getName());
-        assertThat(captor.getValue().getStatus()).isEqualTo("PENDING");
-        assertThat(captor.getValue().getAggregateId()).isEqualTo(savedUser.getId().toString());
+        verify(outboxEventRepository, times(2)).save(captor.capture());
+
+        List<OutboxEvent> saved = captor.getAllValues();
+
+        OutboxEvent userCreatedEntry = saved.stream()
+                .filter(e -> e.getEventType().equals(UserCreatedEvent.class.getName()))
+                .findFirst().orElseThrow();
+        assertThat(userCreatedEntry.getTopic()).isEqualTo("user-events");
+        assertThat(userCreatedEntry.getStatus()).isEqualTo("PENDING");
+        assertThat(userCreatedEntry.getAggregateId()).isEqualTo(savedUser.getId().toString());
+
+        OutboxEvent welcomeEmailEntry = saved.stream()
+                .filter(e -> e.getEventType().equals(EmailNotificationEvent.class.getName()))
+                .findFirst().orElseThrow();
+        assertThat(welcomeEmailEntry.getTopic()).isEqualTo("notification-events");
+        assertThat(welcomeEmailEntry.getStatus()).isEqualTo("PENDING");
+        assertThat(welcomeEmailEntry.getAggregateId()).isEqualTo(savedUser.getId().toString());
     }
 
     @Test

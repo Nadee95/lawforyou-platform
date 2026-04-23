@@ -8,6 +8,7 @@ import com.lawforyou.user.dto.request.RegisterUserRequest;
 import com.lawforyou.user.dto.request.UpdateUserRequest;
 import com.lawforyou.user.dto.response.UserDto;
 import com.lawforyou.user.entity.*;
+import com.lawforyou.user.event.EmailNotificationEvent;
 import com.lawforyou.user.event.UserCreatedEvent;
 import com.lawforyou.user.event.UserUpdatedEvent;
 import com.lawforyou.user.mapper.UserMapper;
@@ -85,12 +86,27 @@ public class UserServiceImpl implements UserService {
         // server-assigned fields: tenantId, createdAt, updatedAt, etc.
         entityManager.refresh(saved);
 
-        // Instead of publishing the event directly, save it to the outbox table.
+        // ── Outbox: UserCreatedEvent → user-events ────────────────────────────
         outboxEventRepository.save(OutboxEvent.builder()
                 .aggregateType("User")
                 .aggregateId(saved.getId().toString())
+                .topic("user-events")
                 .eventType(UserCreatedEvent.class.getName())
                 .payload(toJson(userMapper.toDto(saved)))
+                .status("PENDING")
+                .build());
+
+        // ── Outbox: welcome email → notification-events ───────────────────────
+        outboxEventRepository.save(OutboxEvent.builder()
+                .aggregateType("User")
+                .aggregateId(saved.getId().toString())
+                .topic(EmailNotificationEvent.TOPIC)
+                .eventType(EmailNotificationEvent.class.getName())
+                .payload(toJson(EmailNotificationEvent.welcome(
+                        saved.getEmail(),
+                        saved.getUsername(),
+                        tenantId.toString(),
+                        null)))
                 .status("PENDING")
                 .build());
 
@@ -178,6 +194,7 @@ public class UserServiceImpl implements UserService {
         outboxEventRepository.save(OutboxEvent.builder()
                 .aggregateType("User")
                 .aggregateId(saved.getId().toString())
+                .topic("user-events")
                 .eventType(UserUpdatedEvent.class.getName())
                 .payload(toJson(userMapper.toDto(saved)))
                 .status("PENDING")
@@ -196,6 +213,7 @@ public class UserServiceImpl implements UserService {
         outboxEventRepository.save(OutboxEvent.builder()
                 .aggregateType("User")
                 .aggregateId(saved.getId().toString())
+                .topic("user-events")
                 .eventType(UserUpdatedEvent.class.getName())
                 .payload(toJson(userMapper.toDto(saved)))
                 .status("PENDING")

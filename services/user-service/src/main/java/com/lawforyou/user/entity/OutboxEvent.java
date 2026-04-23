@@ -33,6 +33,14 @@ public class OutboxEvent {
     @Column(name = "event_type", nullable = false, length = 200)
     private String eventType;
 
+    /**
+     * Kafka topic this event must be published to.
+     * Allows the single {@code OutboxRelay} to route events across multiple topics
+     * (e.g. {@code "user-events"}, {@code "notification-events"}).
+     */
+    @Column(nullable = false, length = 200)
+    private String topic;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String payload;
 
