@@ -16,7 +16,7 @@ spring:
             allowed-origins: "*"
             allowed-methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
             allowed-headers: "*"
-            exposed-headers: "X-Correlation-ID"
+            exposed-headers: "X-Correlation-ID,X-Trace-ID"
 
       # ── Routes ──────────────────────────────────────────────────────────────
       routes:
@@ -71,7 +71,7 @@ spring:
 
         # ── Communication Service — manual notification trigger ────────────────
         - id: communication-service
-          uri: http://localhost:8084
+          uri: lb://communication-service
           predicates:
             - Path=/api/v1/notifications/**
           filters:
@@ -110,6 +110,12 @@ management:
   endpoint:
     health:
       show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
   metrics:
     tags:
       application: ${spring.application.name}

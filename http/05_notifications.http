@@ -1,0 +1,47 @@
+﻿### Communication Service — HTTP smoke tests
+### Primary delivery is via Kafka (notification-events topic).
+### These endpoints allow manual triggers for testing or admin use.
+### Mailhog UI: http://localhost:8025 — view captured emails in local dev.
+### ── Health Check ────────────────────────────────────────────────
+GET http://localhost:8084/health
+###
+### ── Send Email Notification (manual trigger) ───────────────────
+
+POST http://localhost:8084/api/v1/notifications
+Content-Type: application/json
+
+{
+  "type": "EMAIL",
+  "to": "client@example.com",
+  "subject": "Your case has been assigned",
+  "body": "Dear Client,\n\nYour case 'Smith vs. Jones' has been assigned to Lawyer Smith.\n\nRegards,\nLawForYou Platform",
+  "tenantId": "{{tenantId}}",
+  "correlationId": "{{correlationId}}"
+}
+###
+### ── Send SMS Notification (manual trigger — stub in dev) ───────
+POST http://localhost:8084/api/v1/notifications
+Content-Type: application/json
+
+{
+  "type": "SMS",
+  "to": "+94771234567",
+  "body": "LawForYou: Your case has been assigned to Lawyer Smith.",
+  "tenantId": "{{tenantId}}",
+  "correlationId": "{{correlationId}}"
+}
+###
+### ── Via API Gateway (port 8080) ────────────────────────────────
+POST http://localhost:8080/api/v1/notifications
+Content-Type: application/json
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: {{tenantId}}
+
+{
+  "type": "EMAIL",
+  "to": "admin@lawforyou.dev",
+  "subject": "Test via Gateway",
+  "body": "This notification was sent via the API Gateway.",
+  "tenantId": "{{tenantId}}",
+  "correlationId": "{{correlationId}}"
+}

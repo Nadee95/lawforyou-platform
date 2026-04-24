@@ -1,0 +1,113 @@
+# ============================================================
+# 01 — AUTHENTICATION
+#
+# DEV USERS (seeded by Flyway V5 — no registration needed):
+#   admin@lawforyou.dev  / Admin@12345   → ADMIN  role (all permissions)
+#   lawyer@lawforyou.dev / Lawyer@12345  → LAWYER role (CASE_* + DOCUMENT_* + USER_READ)
+#
+# The "Login as Admin" request saves the JWT to {{jwt_token}} so
+# all subsequent requests in 02_users.http / 03_cases.http work
+# without copy-pasting.
+#
+# "Register" is still available if you want to create an ad-hoc CLIENT user.
+# ============================================================
+
+### Register — create a new CLIENT user in the tenant (optional)
+# @name register
+POST {{userService}}/api/auth/register
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "username":  "admin",
+  "email":     "{{adminEmail}}",
+  "password":  "{{adminPassword}}",
+  "firstName": "Platform",
+  "lastName":  "Admin"
+}
+
+###
+
+### Login as Admin — captures JWT with ALL permissions
+# @name loginAdmin
+POST {{userService}}/api/auth/login
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "{{adminEmail}}",
+  "password":        "{{adminPassword}}"
+}
+
+> {%
+  client.test("Login succeeded", function () {
+    client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
+  });
+
+  var token = response.body.data && response.body.data.accessToken;
+  client.test("Token present in response", function () {
+    client.assert(!!token, "data.accessToken was missing from response");
+  });
+
+  if (token) {
+    client.global.set("jwt_token", token);
+    client.log("✓ jwt_token saved (ADMIN) — all case/user requests are ready.");
+  }
+%}
+
+###
+
+### Login as Admin — captures JWT with ALL permissions (via API Gateway)
+# @name loginAdmin
+POST {{apiGateway}}/api/auth/login
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "{{adminEmail}}",
+  "password":        "{{adminPassword}}"
+}
+
+> {%
+    client.test("Login succeeded", function () {
+        client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
+    });
+
+    var token = response.body.data && response.body.data.accessToken;
+    client.test("Token present in response", function () {
+        client.assert(!!token, "data.accessToken was missing from response");
+    });
+
+    if (token) {
+        client.global.set("jwt_token", token);
+        client.log("✓ jwt_token saved (ADMIN) — all case/user requests are ready.");
+    }
+%}
+
+###
+
+### Login as Lawyer — captures JWT with CASE_* + DOCUMENT_* permissions
+# @name loginLawyer
+POST {{userService}}/api/auth/login
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "{{lawyerEmail}}",
+  "password":        "{{lawyerPassword}}"
+}
+
+> {%
+  client.test("Lawyer login succeeded", function () {
+    client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
+  });
+
+  var token = response.body.data && response.body.data.accessToken;
+  if (token) {
+    client.global.set("jwt_token", token);
+    client.log("✓ jwt_token saved (LAWYER) — CASE_CREATE / CASE_ASSIGN / DOCUMENT_* ready.");
+  }
+%}
+
+###
+

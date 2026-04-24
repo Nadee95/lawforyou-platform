@@ -1,0 +1,99 @@
+# ============================================================
+# 02 — USER MANAGEMENT
+#
+# Requires {{jwt_token}} — run Login in 01_auth.http first.
+# Paste a real userId into the userId variable as needed.
+# ============================================================
+
+@userId = 00000000-0000-0000-0000-000000000000
+
+# ── Read ────────────────────────────────────────────────────
+
+### List users (requires USER_READ permission)
+GET {{userService}}/api/users
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+###
+
+### List users — paginated (page 0, 10 per page, sorted by createdAt desc)
+GET {{userService}}/api/users?page=0&size=10&sort=createdAt,desc
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+###
+
+### Search users by name / email / username
+GET {{userService}}/api/users/search?q=admin
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+###
+
+### Get user by ID
+GET {{userService}}/api/users/{{userId}}
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+###
+
+# ── Update ───────────────────────────────────────────────────
+
+### Update own profile (partial — only non-null fields applied)
+PATCH {{userService}}/api/users/{{userId}}
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "firstName": "Updated",
+  "lastName":  "Dennis"
+}
+
+###
+
+### Deactivate a user (requires USER_UPDATE permission)
+PATCH {{userService}}/api/users/{{userId}}/status?active=false
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+###
+
+### Reactivate a user
+PATCH {{userService}}/api/users/{{userId}}/status?active=true
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+###
+
+# ── Role management ──────────────────────────────────────────
+
+@roleId = 00000000-0000-0000-0000-000000000000
+
+### Assign a role to a user (requires ROLE_MANAGE permission)
+POST {{userService}}/api/users/{{userId}}/roles/{{roleId}}
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+###
+
+### Remove a role from a user
+DELETE {{userService}}/api/users/{{userId}}/roles/{{roleId}}
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+###
+
+### Update user first and last name (partial update)
+PATCH {{userService}}/api/users/e90e269e-6ed8-4671-a855-619cdaba824c
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "firstName": "CDE",
+  "lastName":  "Suchs"
+}
+
+
+
