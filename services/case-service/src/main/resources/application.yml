@@ -52,6 +52,12 @@ management:
   endpoint:
     health:
       show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
 
 # JWT config is served by Config Server (config-server/resources/config/application.yml).
 # For local dev without Config Server, set env var: JWT_SECRET=lawforyou-dev-secret-change-in-production-must-be-32chars

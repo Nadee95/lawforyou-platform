@@ -1,4 +1,5 @@
-﻿import { ValidationPipe } from '@nestjs/common';
+﻿import './tracing'; // must be first — initialises OpenTelemetry before any other module
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
