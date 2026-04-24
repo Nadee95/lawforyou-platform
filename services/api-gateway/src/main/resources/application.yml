@@ -71,7 +71,7 @@ spring:
 
         # ── Communication Service — manual notification trigger ────────────────
         - id: communication-service
-          uri: http://localhost:8084
+          uri: lb://communication-service
           predicates:
             - Path=/api/v1/notifications/**
           filters:
