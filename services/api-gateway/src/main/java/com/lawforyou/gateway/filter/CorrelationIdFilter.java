@@ -24,7 +24,12 @@ public class CorrelationIdFilter implements GlobalFilter, Ordered {
         ServerHttpRequest mutated = exchange.getRequest().mutate()
                 .header(HEADER_CORRELATION_ID, cid)
                 .build();
-        return chain.filter(exchange.mutate().request(mutated).build())
-                .doFinally(s -> exchange.getResponse().getHeaders().add(HEADER_CORRELATION_ID, cid));
+        ServerWebExchange mutatedExchange = exchange.mutate().request(mutated).build();
+        // beforeCommit fires before headers are locked ? safe to write here
+        mutatedExchange.getResponse().beforeCommit(() -> {
+            mutatedExchange.getResponse().getHeaders().set(HEADER_CORRELATION_ID, cid);
+            return Mono.empty();
+        });
+        return chain.filter(mutatedExchange);
     }
 }

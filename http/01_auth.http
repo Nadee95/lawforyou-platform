@@ -57,6 +57,35 @@ Content-Type: application/json
 
 ###
 
+### Login as Admin — captures JWT with ALL permissions (via API Gateway)
+# @name loginAdmin
+POST {{apiGateway}}/api/auth/login
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "{{adminEmail}}",
+  "password":        "{{adminPassword}}"
+}
+
+> {%
+    client.test("Login succeeded", function () {
+        client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
+    });
+
+    var token = response.body.data && response.body.data.accessToken;
+    client.test("Token present in response", function () {
+        client.assert(!!token, "data.accessToken was missing from response");
+    });
+
+    if (token) {
+        client.global.set("jwt_token", token);
+        client.log("✓ jwt_token saved (ADMIN) — all case/user requests are ready.");
+    }
+%}
+
+###
+
 ### Login as Lawyer — captures JWT with CASE_* + DOCUMENT_* permissions
 # @name loginLawyer
 POST {{userService}}/api/auth/login
