@@ -1,0 +1,54 @@
+### Document Service — HTTP smoke tests
+### Requires: infrastructure running, user-service running (to get JWT token)
+### Set jwt_token in http-client.env.json after login
+
+### ── Upload Document ──────────────────────────────────────────
+POST http://localhost:8083/api/v1/documents
+Content-Type: multipart/form-data; boundary=boundary
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="contract.pdf"
+Content-Type: application/pdf
+
+< ./sample-contract.pdf
+--boundary
+Content-Disposition: form-data; name="metadata"
+Content-Type: application/json
+
+{
+  "caseId": "{{case_id}}",
+  "category": "CONTRACT",
+  "description": "Main retainer agreement"
+}
+--boundary--
+
+### ── List Documents for a Case ──────────────────────────────
+GET http://localhost:8083/api/v1/documents/case/{{case_id}}?page=0&size=10
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+### ── Get Document Metadata ───────────────────────────────────
+GET http://localhost:8083/api/v1/documents/{{document_id}}
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+### ── Download Latest Version ────────────────────────────────
+GET http://localhost:8083/api/v1/documents/{{document_id}}/download
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+### ── Download Specific Version ──────────────────────────────
+GET http://localhost:8083/api/v1/documents/{{document_id}}/versions/1/download
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+### ── Delete Document ─────────────────────────────────────────
+DELETE http://localhost:8083/api/v1/documents/{{document_id}}
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+### ── Health Check ───────────────────────────────────────────
+GET http://localhost:8083/actuator/health
+

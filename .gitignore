@@ -25,6 +25,7 @@ logs/
 
 # Docker
 .env
+.env.*.bak
 
 # Secrets — never commit credentials
 **/src/main/resources/application-prod.yml

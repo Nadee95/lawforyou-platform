@@ -1,0 +1,66 @@
+### Case Service — HTTP smoke tests
+### Requires: infrastructure running, user-service running (to get JWT token)
+### Set jwt_token in http-client.env.json after login
+
+### ── Create Case ─────────────────────────────────────────────────
+POST http://localhost:8082/api/cases
+Content-Type: application/json
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+{
+  "title": "Smith vs. Jones",
+  "description": "Civil dispute over property boundary",
+  "caseType": "CIVIL",
+  "clientId": "00000000-0000-0000-0000-000000000099"
+}
+
+### ── List Cases ──────────────────────────────────────────────────
+GET http://localhost:8082/api/cases?page=0&size=10
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+### ── List Cases filtered by status ──────────────────────────────
+GET http://localhost:8082/api/cases?status=OPEN
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+### ── Get Case by ID ─────────────────────────────────────────────
+GET http://localhost:8082/api/cases/{{case_id}}
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+### ── Update Case ────────────────────────────────────────────────
+PUT http://localhost:8082/api/cases/{{case_id}}
+Content-Type: application/json
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+{
+  "title": "Smith vs. Jones (Updated)",
+  "description": "Updated description"
+}
+
+### ── Assign Lawyer ──────────────────────────────────────────────
+PATCH http://localhost:8082/api/cases/{{case_id}}/assign
+Content-Type: application/json
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+{
+  "lawyerId": "00000000-0000-0000-0000-000000000002"
+}
+
+### ── Change Status ──────────────────────────────────────────────
+PATCH http://localhost:8082/api/cases/{{case_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+
+{
+  "status": "IN_PROGRESS"
+}
+
+### ── Health Check ───────────────────────────────────────────────
+GET http://localhost:8082/actuator/health
+

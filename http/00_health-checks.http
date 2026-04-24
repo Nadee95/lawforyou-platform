@@ -1,0 +1,70 @@
+# ============================================================
+# 00 — HEALTH CHECKS
+# Run all (Ctrl+Shift+Click every ▶) or one at a time.
+# Select environment "dev" in the top-right dropdown first.
+# ============================================================
+
+# ── Application Services ────────────────────────────────────
+
+### API Gateway — health
+GET {{apiGateway}}/actuator/health
+
+###
+
+### API Gateway — gateway routes
+GET {{apiGateway}}/actuator/gateway/routes
+
+###
+
+### Config Server — health
+GET {{configServer}}/actuator/health
+
+###
+
+### Eureka Server — health
+GET {{eurekaServer}}/actuator/health
+
+###
+
+### User Service — health
+GET {{userService}}/actuator/health
+
+###
+
+### User Service — info
+GET {{userService}}/actuator/info
+
+###
+
+### User Service — Prometheus metrics (scraped by Prometheus every 15s)
+GET {{userService}}/actuator/prometheus
+
+###
+
+# ── Infrastructure ──────────────────────────────────────────
+
+### Prometheus — ready
+GET {{prometheus}}/-/ready
+
+###
+
+### Prometheus — targets (check user-service is UP here)
+GET {{prometheus}}/api/v1/targets
+
+###
+
+### Grafana — health
+GET {{grafana}}/api/health
+
+###
+
+### Jaeger UI — reachable
+GET {{jaegerUI}}
+
+###
+
+### Jaeger — list traced services (appears after first request is traced)
+GET {{jaegerUI}}/api/services
+
+###
+
