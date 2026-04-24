@@ -268,4 +268,85 @@ class UserIntegrationTest {
                         .header("Authorization", "Bearer " + bobToken))
                 .andExpect(status().isForbidden());
     }
+
+    /** Missing required field (blank username) must return 422 Unprocessable Entity. */
+    @Test
+    void register_withBlankUsername_returns422() throws Exception {
+        var badRequest = new RegisterUserRequest(
+                "",                   // ← blank username — @NotBlank fails
+                "valid@acme.com", "Password123!", null, null, null);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .header("X-Tenant-ID", DEV_TENANT_STR)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(badRequest)))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    /** Missing required field (invalid email format) must return 422. */
+    @Test
+    void register_withInvalidEmailFormat_returns422() throws Exception {
+        var badRequest = new RegisterUserRequest(
+                "validuser", "not-an-email", "Password123!", null, null, null);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .header("X-Tenant-ID", DEV_TENANT_STR)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(badRequest)))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    /** Registering twice with the same username must return 409. */
+    @Test
+    void register_duplicateUsername_returns409() throws Exception {
+        var req = uniqueRegisterRequest();
+        registerAndGetId(req);
+
+        // Same username, different email
+        String newEmail = UUID.randomUUID().toString().replace("-", "").substring(0, 10) + "@test.com";
+        var duplicate = new RegisterUserRequest(
+                req.username(),  // ← same username → conflict
+                newEmail, req.password(), null, null, null);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .header("X-Tenant-ID", DEV_TENANT_STR)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(duplicate)))
+                .andExpect(status().isConflict());
+    }
+
+    /** Password too short (< 8 chars) must return 422. */
+    @Test
+    void register_withTooShortPassword_returns422() throws Exception {
+        var badRequest = new RegisterUserRequest(
+                "validuser2", "valid@acme.com", "short",  // ← < 8 chars
+                null, null, null);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .header("X-Tenant-ID", DEV_TENANT_STR)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(badRequest)))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
+    /** Update own profile (firstName, lastName) via PATCH. */
+    @Test
+    void updateUser_ownProfile_returns200WithUpdatedFields() throws Exception {
+        var req = uniqueRegisterRequest();
+        String userId = registerAndGetId(req);
+        String token  = loginAndGetToken(req.username(), req.password());
+
+        var updateBody = """
+                { "firstName": "Updated", "lastName": "Name" }
+                """;
+
+        mockMvc.perform(patch("/api/users/{id}", userId)
+                        .header("X-Tenant-ID", DEV_TENANT_STR)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.firstName").value("Updated"))
+                .andExpect(jsonPath("$.data.lastName").value("Name"));
+    }
 }
