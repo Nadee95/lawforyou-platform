@@ -5,18 +5,35 @@
     .\health-check.ps1
 #>
 $checks = @(
-    @{ Name = "Config Server";   Url = "http://localhost:8888/actuator/health" }
-    @{ Name = "Eureka Server";   Url = "http://localhost:8761/actuator/health" }
-    @{ Name = "User Service";    Url = "http://localhost:8081/actuator/health"  }
-    @{ Name = "Prometheus";      Url = "http://localhost:9090/-/ready"          }
-    @{ Name = "Grafana";         Url = "http://localhost:3000/api/health"       }
-    @{ Name = "Jaeger UI";       Url = "http://localhost:16686/"                }
-    @{ Name = "Jaeger API";      Url = "http://localhost:16686/api/services"    }
+    # ── Infrastructure UIs ──────────────────────────────────────────
+    @{ Name = "Prometheus";           Url = "http://localhost:9090/-/ready"              }
+    @{ Name = "Grafana";              Url = "http://localhost:3000/api/health"           }
+    @{ Name = "Jaeger UI";            Url = "http://localhost:16686/"                    }
+    @{ Name = "MinIO Console";        Url = "http://localhost:9091/minio/health/live"    }
+    @{ Name = "MailHog UI";           Url = "http://localhost:8025/"                     }
+
+    # ── Java services (Spring Actuator) ─────────────────────────────
+    @{ Name = "Config Server";        Url = "http://localhost:8888/actuator/health"      }
+    @{ Name = "Eureka Server";        Url = "http://localhost:8761/actuator/health"      }
+    @{ Name = "API Gateway";          Url = "http://localhost:8080/actuator/health"      }
+    @{ Name = "User Service";         Url = "http://localhost:8081/actuator/health"      }
+    @{ Name = "Case Service";         Url = "http://localhost:8082/actuator/health"      }
+    @{ Name = "Document Service";     Url = "http://localhost:8083/actuator/health"      }
+
+    # ── NestJS service ───────────────────────────────────────────────
+    @{ Name = "Communication Svc";    Url = "http://localhost:8084/health"               }
 )
 $dockerChecks = @(
-    @{ Name = "PostgreSQL"; Container = "lawforyou-postgres" }
-    @{ Name = "Redis";      Container = "lawforyou-redis"    }
-    @{ Name = "Kafka";      Container = "lawforyou-kafka"    }
+    @{ Name = "PostgreSQL";   Container = "lawforyou-postgres"   }
+    @{ Name = "Redis";        Container = "lawforyou-redis"      }
+    @{ Name = "ZooKeeper";    Container = "lawforyou-zookeeper"  }
+    @{ Name = "Kafka";        Container = "lawforyou-kafka"      }
+    @{ Name = "MongoDB";      Container = "lawforyou-mongodb"    }
+    @{ Name = "MinIO";        Container = "lawforyou-minio"      }
+    @{ Name = "MailHog";      Container = "lawforyou-mailhog"    }
+    @{ Name = "Prometheus";   Container = "lawforyou-prometheus" }
+    @{ Name = "Grafana";      Container = "lawforyou-grafana"    }
+    @{ Name = "Jaeger";       Container = "lawforyou-jaeger"     }
 )
 $pass  = 0
 $fail  = 0
@@ -76,4 +93,9 @@ if ($fail -eq 0) {
 } else {
     Write-Host "  $pass/$total passed, $fail failed." -ForegroundColor Yellow
 }
+Write-Host "  Eureka dashboard: http://localhost:8761" -ForegroundColor DarkGray
+Write-Host "  MailHog inbox:    http://localhost:8025" -ForegroundColor DarkGray
+Write-Host "  MinIO console:    http://localhost:9091  (minioadmin/minioadmin)" -ForegroundColor DarkGray
+Write-Host "  Grafana:          http://localhost:3000  (admin/admin)" -ForegroundColor DarkGray
+Write-Host "  Jaeger UI:        http://localhost:16686" -ForegroundColor DarkGray
 Write-Host ""
