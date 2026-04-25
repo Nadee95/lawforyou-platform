@@ -5,6 +5,7 @@ import com.lawforyou.document.dto.request.UploadDocumentRequest;
 import com.lawforyou.document.dto.response.DocumentDto;
 import com.lawforyou.document.model.DocumentCategory;
 import com.lawforyou.document.model.DocumentMetadata;
+import com.lawforyou.document.model.DocumentVersion;
 import com.lawforyou.document.model.OutboxEvent;
 import com.lawforyou.document.repository.DocumentMetadataRepository;
 import com.lawforyou.document.repository.OutboxEventRepository;
@@ -17,15 +18,27 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.nadeex.spring.exception.BusinessException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -153,6 +166,139 @@ class DocumentServiceImplTest {
 
         assertThat(doc.isDeleted()).isTrue();
         verify(documentMetadataRepository).save(doc);
+    }
+
+    // ── uploadDocument — failure cases ────────────────────────────────────────
+
+    @Test
+    void uploadDocument_whenMinioFails_throwsBusinessException() {
+        UploadDocumentRequest request = new UploadDocumentRequest();
+        request.setCaseId(caseId);
+        request.setCategory(DocumentCategory.CONTRACT);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "contract.pdf", "application/pdf", "content".getBytes());
+
+        when(minioStorageService.upload(any(), anyString(), anyInt(), anyString(), any(), anyLong(), anyString()))
+                .thenThrow(new BusinessException("MinIO unavailable"));
+
+        assertThatThrownBy(() -> documentService.uploadDocument(tenantId, "uploader", request, file))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("MinIO unavailable");
+
+        verify(documentMetadataRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadDocument_whenFileReadFails_throwsBusinessException() throws IOException {
+        UploadDocumentRequest request = new UploadDocumentRequest();
+        request.setCaseId(caseId);
+        request.setCategory(DocumentCategory.CONTRACT);
+
+        MultipartFile badFile = mock(MultipartFile.class);
+        when(badFile.getOriginalFilename()).thenReturn("contract.pdf");
+        when(badFile.getContentType()).thenReturn("application/pdf");
+        // getSize() is never reached — IOException is thrown before upload() is called
+        when(badFile.getInputStream()).thenThrow(new IOException("disk read error"));
+
+        assertThatThrownBy(() -> documentService.uploadDocument(tenantId, "uploader", request, badFile))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Failed to read uploaded file");
+    }
+
+    // ── downloadLatest ────────────────────────────────────────────────────────
+
+    @Test
+    void downloadLatest_existingDocument_returnsStream() {
+        DocumentVersion version = DocumentVersion.builder()
+                .versionNumber(1).minioObjectKey("tenant/doc/v1/file.pdf").uploadedAt(Instant.now()).build();
+        DocumentMetadata doc = DocumentMetadata.builder()
+                .id("doc-1").tenantId(tenantId).currentVersionNumber(1).build();
+        doc.getVersions().add(version);
+
+        InputStream stream = new ByteArrayInputStream("pdf-bytes".getBytes());
+        when(documentMetadataRepository.findByIdAndTenantIdAndDeletedFalse("doc-1", tenantId))
+                .thenReturn(Optional.of(doc));
+        when(minioStorageService.download("tenant/doc/v1/file.pdf")).thenReturn(stream);
+
+        InputStream result = documentService.downloadLatest(tenantId, "doc-1");
+
+        assertThat(result).isSameAs(stream);
+        verify(minioStorageService).download("tenant/doc/v1/file.pdf");
+    }
+
+    @Test
+    void downloadLatest_documentNotFound_throwsResourceNotFoundException() {
+        when(documentMetadataRepository.findByIdAndTenantIdAndDeletedFalse("missing", tenantId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> documentService.downloadLatest(tenantId, "missing"))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ── downloadVersion ───────────────────────────────────────────────────────
+
+    @Test
+    void downloadVersion_existingVersion_returnsStream() {
+        DocumentVersion v1 = DocumentVersion.builder()
+                .versionNumber(1).minioObjectKey("tenant/doc/v1/file.pdf").uploadedAt(Instant.now()).build();
+        DocumentMetadata doc = DocumentMetadata.builder()
+                .id("doc-1").tenantId(tenantId).currentVersionNumber(1).build();
+        doc.getVersions().add(v1);
+
+        InputStream stream = new ByteArrayInputStream("v1-bytes".getBytes());
+        when(documentMetadataRepository.findByIdAndTenantIdAndDeletedFalse("doc-1", tenantId))
+                .thenReturn(Optional.of(doc));
+        when(minioStorageService.download("tenant/doc/v1/file.pdf")).thenReturn(stream);
+
+        InputStream result = documentService.downloadVersion(tenantId, "doc-1", 1);
+
+        assertThat(result).isSameAs(stream);
+    }
+
+    @Test
+    void downloadVersion_versionNotFound_throwsResourceNotFoundException() {
+        DocumentMetadata doc = DocumentMetadata.builder()
+                .id("doc-1").tenantId(tenantId).currentVersionNumber(1).build();
+        // no versions added → version 99 does not exist
+
+        when(documentMetadataRepository.findByIdAndTenantIdAndDeletedFalse("doc-1", tenantId))
+                .thenReturn(Optional.of(doc));
+
+        assertThatThrownBy(() -> documentService.downloadVersion(tenantId, "doc-1", 99))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ── deleteDocument — not found ────────────────────────────────────────────
+
+    @Test
+    void deleteDocument_notFound_throwsResourceNotFoundException() {
+        when(documentMetadataRepository.findByIdAndTenantIdAndDeletedFalse("gone", tenantId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> documentService.deleteDocument(tenantId, "gone"))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ── listByCase ────────────────────────────────────────────────────────────
+
+    @Test
+    void listByCase_returnsPagedResponse() {
+        var pageable = PageRequest.of(0, 10);
+        DocumentMetadata doc = DocumentMetadata.builder()
+                .id("doc-1").tenantId(tenantId).caseId(caseId)
+                .originalFilename("brief.pdf").contentType("application/pdf")
+                .category(DocumentCategory.PLEADING).currentVersionNumber(1).build();
+        Page<DocumentMetadata> page = new PageImpl<>(List.of(doc), pageable, 1);
+
+        when(documentMetadataRepository.findByCaseIdAndTenantIdAndDeletedFalse(caseId, tenantId, pageable))
+                .thenReturn(page);
+
+        var result = documentService.listByCase(tenantId, caseId, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getOriginalFilename()).isEqualTo("brief.pdf");
+        assertThat(result.getTotalElements()).isEqualTo(1);
     }
 }
 

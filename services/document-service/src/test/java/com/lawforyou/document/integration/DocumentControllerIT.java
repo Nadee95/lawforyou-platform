@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -148,6 +150,98 @@ class DocumentControllerIT {
                         .file(metadataPart)
                         .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(status().isUnauthorized());
+    }
+
+    // ── Helper ────────────────────────────────────────────────────────────────
+
+    /** Uploads a document and returns its ID from the response body. */
+    private String uploadAndGetId(UUID caseId, String jwt) throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "brief.pdf", "application/pdf", "PDF content".getBytes());
+        String metadataJson = """
+                { "caseId": "%s", "category": "PLEADING", "description": "A brief" }
+                """.formatted(caseId);
+        MockMultipartFile metadataPart = new MockMultipartFile(
+                "metadata", "", "application/json", metadataJson.getBytes());
+
+        String body = mockMvc.perform(multipart("/api/v1/documents")
+                        .file(file)
+                        .file(metadataPart)
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .header("Authorization", "Bearer " + jwt)
+                        .header("X-Tenant-ID", TENANT_STR))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        return com.fasterxml.jackson.databind.json.JsonMapper.builder().build()
+                .readTree(body).path("data").path("id").asText();
+    }
+
+    // ── GET /api/v1/documents/{id} ────────────────────────────────────────────
+
+    @Test
+    void getById_existingDocument_returns200WithMetadata() throws Exception {
+        UUID caseId = UUID.randomUUID();
+        String jwt   = jwtFor(UUID.randomUUID(), List.of("LAWYER"));
+        String docId = uploadAndGetId(caseId, jwt);
+
+        mockMvc.perform(get("/api/v1/documents/{id}", docId)
+                        .header("Authorization", "Bearer " + jwt)
+                        .header("X-Tenant-ID", TENANT_STR))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(docId))
+                .andExpect(jsonPath("$.data.originalFilename").value("brief.pdf"))
+                .andExpect(jsonPath("$.data.category").value("PLEADING"));
+    }
+
+    @Test
+    void getById_unknownDocument_returns404() throws Exception {
+        String jwt = jwtFor(UUID.randomUUID(), List.of("LAWYER"));
+
+        mockMvc.perform(get("/api/v1/documents/{id}", "non-existent-id")
+                        .header("Authorization", "Bearer " + jwt)
+                        .header("X-Tenant-ID", TENANT_STR))
+                .andExpect(status().isNotFound());
+    }
+
+    // ── DELETE /api/v1/documents/{id} ─────────────────────────────────────────
+
+    @Test
+    void delete_existingDocument_returns204AndDocumentIsGone() throws Exception {
+        UUID caseId = UUID.randomUUID();
+        String jwt   = jwtFor(UUID.randomUUID(), List.of("LAWYER"));
+        String docId = uploadAndGetId(caseId, jwt);
+
+        // Delete it
+        mockMvc.perform(delete("/api/v1/documents/{id}", docId)
+                        .header("Authorization", "Bearer " + jwt)
+                        .header("X-Tenant-ID", TENANT_STR))
+                .andExpect(status().isNoContent());
+
+        // Verify soft-deleted — subsequent GET returns 404
+        mockMvc.perform(get("/api/v1/documents/{id}", docId)
+                        .header("Authorization", "Bearer " + jwt)
+                        .header("X-Tenant-ID", TENANT_STR))
+                .andExpect(status().isNotFound());
+    }
+
+    // ── GET /api/v1/documents/case/{caseId} ──────────────────────────────────
+
+    @Test
+    void listByCase_returns200WithUploadedDocuments() throws Exception {
+        UUID caseId = UUID.randomUUID();
+        String jwt  = jwtFor(UUID.randomUUID(), List.of("LAWYER"));
+
+        // Upload two documents for the same case
+        uploadAndGetId(caseId, jwt);
+        uploadAndGetId(caseId, jwt);
+
+        mockMvc.perform(get("/api/v1/documents/case/{caseId}", caseId)
+                        .header("Authorization", "Bearer " + jwt)
+                        .header("X-Tenant-ID", TENANT_STR))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.totalElements").value(2));
     }
 }
 
