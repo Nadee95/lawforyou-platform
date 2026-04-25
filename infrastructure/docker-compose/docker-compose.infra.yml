@@ -8,6 +8,8 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: lawforyou-postgres
+    networks:
+      - lawforyou-net
     environment:
       POSTGRES_USER: lawforyou
       POSTGRES_PASSWORD: lawforyou
@@ -28,6 +30,8 @@ services:
     container_name: lawforyou-redis
     ports:
       - "6379:6379"
+    networks:
+      - lawforyou-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -43,6 +47,8 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    networks:
+      - lawforyou-net
 
   # ── Kafka ──────────────────────────────────────────────────
   kafka:
@@ -59,6 +65,8 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - lawforyou-net
 
   # ── Prometheus ─────────────────────────────────────────────
   prometheus:
@@ -69,6 +77,8 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
+    networks:
+      - lawforyou-net
 
   # ── Grafana ────────────────────────────────────────────────
   grafana:
@@ -80,8 +90,13 @@ services:
       - "3000:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/01-jvm-overview.json
     volumes:
       - grafana_data:/var/lib/grafana
+      - ../grafana/provisioning:/etc/grafana/provisioning
+      - ../grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - lawforyou-net
 
   # ── Jaeger (all-in-one, Zipkin-compatible endpoint) ────────
   jaeger:
@@ -92,6 +107,8 @@ services:
     ports:
       - "16686:16686"   # Jaeger UI
       - "9411:9411"     # Zipkin-compatible endpoint (used by Micrometer Tracing)
+    networks:
+      - lawforyou-net
 
   # ── MongoDB (document-service metadata) ──────────────────
   mongodb:
@@ -103,6 +120,8 @@ services:
       MONGO_INITDB_DATABASE: document_db
     volumes:
       - mongodb_data:/data/db
+    networks:
+      - lawforyou-net
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -122,6 +141,8 @@ services:
       - "9091:9091"    # MinIO Console UI
     volumes:
       - minio_data:/data
+    networks:
+      - lawforyou-net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
@@ -135,6 +156,8 @@ services:
     ports:
       - "1025:1025"   # SMTP — communication-service sends here
       - "8025:8025"   # Web UI — view captured emails at http://localhost:8025
+    networks:
+      - lawforyou-net
 
 volumes:
   postgres_data:
@@ -143,3 +166,7 @@ volumes:
   mongodb_data:
   minio_data:
 
+networks:
+  lawforyou-net:
+    name: lawforyou-net
+    driver: bridge

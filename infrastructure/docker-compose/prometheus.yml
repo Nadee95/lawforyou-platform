@@ -1,28 +1,33 @@
 global:
   scrape_interval: 15s
-
 scrape_configs:
+  # -- API Gateway ----------------------------------------------------
   - job_name: 'api-gateway'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8080']
-
+      - targets: ['lawforyou-gateway:8080']
+  # -- User Service ---------------------------------------------------
   - job_name: 'user-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8081']
-
+      - targets: ['lawforyou-user:8081']
+  # -- Case Service ---------------------------------------------------
   - job_name: 'case-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8082']
-
+      - targets: ['lawforyou-case:8082']
+  # -- Document Service -----------------------------------------------
+  - job_name: 'document-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['lawforyou-document:8083']
+  # -- Config Server --------------------------------------------------
   - job_name: 'config-server'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8888']
-
+      - targets: ['lawforyou-config:8888']
+  # -- Eureka Server --------------------------------------------------
   - job_name: 'eureka-server'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8761']
+      - targets: ['lawforyou-eureka:8761']

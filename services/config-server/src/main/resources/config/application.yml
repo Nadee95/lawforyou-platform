@@ -1,10 +1,13 @@
 # Shared defaults delivered to every service that connects to this Config Server.
 # Services can override any key in their own <service-name>.yml file.
+# NOTE: hostnames here are Docker container/service names — works when all services
+#       run in Docker on lawforyou-net. For local IDE dev, services use their own
+#       application.yml (no config server needed).
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://eureka-server:8761/eureka/
   instance:
     prefer-ip-address: true
 
@@ -21,7 +24,7 @@ management:
       probability: 1.0   # 100% in dev — reduce to 0.1 in production
   zipkin:
     tracing:
-      endpoint: http://localhost:9411/api/v2/spans   # Jaeger Zipkin-compatible endpoint
+      endpoint: http://lawforyou-jaeger:9411/api/v2/spans
 
 logging:
   level:
