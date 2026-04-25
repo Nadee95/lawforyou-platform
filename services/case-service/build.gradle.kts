@@ -5,9 +5,9 @@ plugins {
 dependencies {
     // Nadeex shared libraries
     implementation("com.nadeex.spring:common:0.1.0")
-    implementation("com.nadeex.spring:exception:0.1.0")
+    implementation("com.nadeex.spring:exception:0.2.0")
     implementation("com.nadeex.spring:logging:0.1.0")
-    implementation("com.nadeex.spring:security:0.1.0")
+    implementation("com.nadeex.spring:security:0.2.0")
 
     // Web + Validation
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -77,3 +77,4 @@ tasks.jacocoTestReport {
         html.required.set(true)
     }
 }
+

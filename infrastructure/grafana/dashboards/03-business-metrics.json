@@ -1,0 +1,166 @@
+{
+  "uid": "business-metrics",
+  "title": "Business Metrics",
+  "tags": ["business", "lawforyou"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "User Registrations (24h)",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "fixedColor": "blue", "mode": "fixed" } } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "increase(http_server_requests_seconds_count{job=\"user-service\", uri=\"/api/v1/users/register\", status=\"201\"}[24h])",
+        "legendFormat": "Registrations"
+      }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Login Attempts (24h)",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "fixedColor": "green", "mode": "fixed" } } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "increase(http_server_requests_seconds_count{job=\"user-service\", uri=\"/api/v1/auth/login\"}[24h])",
+        "legendFormat": "Logins"
+      }]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Failed Logins (24h)",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 10 },
+            { "color": "red", "value": 50 }
+          ]}
+        }
+      },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "increase(http_server_requests_seconds_count{job=\"user-service\", uri=\"/api/v1/auth/login\", status=\"401\"}[24h])",
+        "legendFormat": "Failed Logins"
+      }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Cases Created (24h)",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "fixedColor": "purple", "mode": "fixed" } } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "increase(http_server_requests_seconds_count{job=\"case-service\", uri=\"/api/v1/cases\", method=\"POST\", status=\"201\"}[24h])",
+        "legendFormat": "Cases"
+      }]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Documents Uploaded (24h)",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "fixedColor": "orange", "mode": "fixed" } } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "increase(http_server_requests_seconds_count{job=\"document-service\", method=\"POST\", status=\"201\"}[24h])",
+        "legendFormat": "Uploads"
+      }]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "API Gateway Requests (24h)",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "increase(http_server_requests_seconds_count{job=\"api-gateway\"}[24h])",
+        "legendFormat": "Gateway Req"
+      }]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "User Registration Rate",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 20 }, "color": { "fixedColor": "blue", "mode": "fixed" } } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "rate(http_server_requests_seconds_count{job=\"user-service\", uri=\"/api/v1/users/register\", status=\"201\"}[5m])",
+        "legendFormat": "Registrations/s"
+      }]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Login Success vs Failure Rate",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "rate(http_server_requests_seconds_count{job=\"user-service\", uri=\"/api/v1/auth/login\", status=\"200\"}[5m])",
+          "legendFormat": "Success"
+        },
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "rate(http_server_requests_seconds_count{job=\"user-service\", uri=\"/api/v1/auth/login\", status=\"401\"}[5m])",
+          "legendFormat": "Failed"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Case & Document Activity",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "rate(http_server_requests_seconds_count{job=\"case-service\", method=\"POST\", status=\"201\"}[5m])",
+          "legendFormat": "Cases Created/s"
+        },
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "rate(http_server_requests_seconds_count{job=\"document-service\", method=\"POST\", status=\"201\"}[5m])",
+          "legendFormat": "Docs Uploaded/s"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Request Volume by Service",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "sum by (job) (rate(http_server_requests_seconds_count{job=~\"user-service|case-service|document-service|api-gateway\"}[5m]))",
+        "legendFormat": "{{job}}"
+      }]
+    }
+  ]
+}
+

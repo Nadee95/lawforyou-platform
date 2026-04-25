@@ -5,7 +5,7 @@ plugins {
 dependencies {
     // Nadeex shared libraries
     implementation("com.nadeex.spring:common:0.1.0")
-    implementation("com.nadeex.spring:exception:0.1.0")
+    implementation("com.nadeex.spring:exception:0.2.0")
 
     // Spring Cloud Gateway (reactive — do NOT add spring-boot-starter-web)
     implementation("org.springframework.cloud:spring-cloud-starter-gateway")
@@ -54,4 +54,5 @@ tasks.jacocoTestReport {
         html.required.set(true)
     }
 }
+
 

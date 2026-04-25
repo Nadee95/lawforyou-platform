@@ -1,12 +1,13 @@
 # Config Server — case-service overrides
 # Merged with config/application.yml (shared defaults) at runtime.
 # Values here take precedence over the shared application.yml.
+# Hostnames are Docker service/container names on lawforyou-net.
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/case_db
-    username: lawforyou
-    password: lawforyou
+    url: jdbc:postgresql://lawforyou-postgres:5432/case_db
+    username: ${POSTGRES_USER:lawforyou}
+    password: ${POSTGRES_PASSWORD:lawforyou}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -21,10 +22,10 @@ spring:
     locations: classpath:db/migration
   data:
     redis:
-      host: localhost
+      host: lawforyou-redis
       port: 6379
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka:29092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer

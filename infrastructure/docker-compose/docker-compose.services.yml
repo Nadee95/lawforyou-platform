@@ -1,0 +1,242 @@
+# Java microservices — requires infra to be running first.
+#
+# ── Step 1: Build all Spring Boot JARs (from lawforyou-platform root) ────────
+#   cd C:\dev\GeneralSolution\gscodebase\lawforyou-platform
+#   ./gradlew :eureka-server:bootJar :config-server:bootJar `
+#             :user-service:bootJar :case-service:bootJar `
+#             :document-service:bootJar :api-gateway:bootJar
+#
+#   NOTE: communication-service (NestJS) builds itself inside Docker — no JAR needed.
+#
+# ── Step 2: Start infrastructure ─────────────────────────────────────────────
+#   cd infrastructure/docker-compose
+#   docker compose -f docker-compose.infra.yml up -d
+#
+# ── Step 3: Start all services (after infra is healthy) ──────────────────────
+#   docker compose -f docker-compose.services.yml up -d
+#
+# ── Startup order (enforced by depends_on + healthchecks) ────────────────────
+#   eureka-server → config-server → user-service    ┐
+#                                   case-service     ├─→ api-gateway
+#                                   document-service │
+#                                   communication-service ┘
+
+services:
+
+  # ── Eureka Service Registry ────────────────────────────────────────────────
+  eureka-server:
+    build:
+      context: ../../services/eureka-server
+      dockerfile: Dockerfile
+    image: lawforyou/eureka-server:latest
+    container_name: lawforyou-eureka
+    ports:
+      - "8761:8761"
+    networks:
+      - lawforyou-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ── Config Server ──────────────────────────────────────────────────────────
+  config-server:
+    build:
+      context: ../../services/config-server
+      dockerfile: Dockerfile
+    image: lawforyou/config-server:latest
+    container_name: lawforyou-config
+    ports:
+      - "8888:8888"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - lawforyou-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8888/actuator/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ── User Service ───────────────────────────────────────────────────────────
+  user-service:
+    build:
+      context: ../../services/user-service
+      dockerfile: Dockerfile
+    image: lawforyou/user-service:latest
+    container_name: lawforyou-user
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://lawforyou-postgres:5432/user_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-lawforyou}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-lawforyou}
+      SPRING_DATA_REDIS_HOST: lawforyou-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://lawforyou-jaeger:9411/api/v2/spans
+      JWT_SECRET: ${JWT_SECRET:-lawforyou-dev-secret-change-in-production-must-be-32chars}
+    depends_on:
+      config-server:
+        condition: service_healthy
+    networks:
+      - lawforyou-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # ── Case Service ───────────────────────────────────────────────────────────
+  case-service:
+    build:
+      context: ../../services/case-service
+      dockerfile: Dockerfile
+    image: lawforyou/case-service:latest
+    container_name: lawforyou-case
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://lawforyou-postgres:5432/case_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-lawforyou}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-lawforyou}
+      SPRING_DATA_REDIS_HOST: lawforyou-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://lawforyou-jaeger:9411/api/v2/spans
+      JWT_SECRET: ${JWT_SECRET:-lawforyou-dev-secret-change-in-production-must-be-32chars}
+    depends_on:
+      config-server:
+        condition: service_healthy
+    networks:
+      - lawforyou-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # ── Document Service ───────────────────────────────────────────────────────
+  document-service:
+    build:
+      context: ../../services/document-service
+      dockerfile: Dockerfile
+    image: lawforyou/document-service:latest
+    container_name: lawforyou-document
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+      SPRING_DATA_MONGODB_URI: mongodb://lawforyou-mongodb:27017/document_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://lawforyou-jaeger:9411/api/v2/spans
+      APP_MINIO_ENDPOINT: http://lawforyou-minio:9000
+      APP_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      APP_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      JWT_SECRET: ${JWT_SECRET:-lawforyou-dev-secret-change-in-production-must-be-32chars}
+    depends_on:
+      config-server:
+        condition: service_healthy
+    networks:
+      - lawforyou-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # ── Communication Service ─────────────────────────────────────────────────
+  communication-service:
+    build:
+      context: ../../services/communication-service
+      dockerfile: Dockerfile
+    image: lawforyou/communication-service:latest
+    container_name: lawforyou-communication
+    ports:
+      - "8084:8084"
+    environment:
+      NODE_ENV: production
+      PORT: 8084
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_GROUP_ID: communication-service
+      KAFKA_CLIENT_ID: communication-service
+      SMTP_HOST: ${SMTP_HOST:-lawforyou-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@lawforyou.dev}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
+      EUREKA_HOST: eureka-server
+      EUREKA_PORT: 8761
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - lawforyou-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ── API Gateway ────────────────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ../../services/api-gateway
+      dockerfile: Dockerfile
+    image: lawforyou/api-gateway:latest
+    container_name: lawforyou-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+      SPRING_DATA_REDIS_HOST: lawforyou-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://lawforyou-jaeger:9411/api/v2/spans
+      JWT_SECRET: ${JWT_SECRET:-lawforyou-dev-secret-change-in-production-must-be-32chars}
+    depends_on:
+      user-service:
+        condition: service_healthy
+      case-service:
+        condition: service_healthy
+      document-service:
+        condition: service_healthy
+      communication-service:
+        condition: service_healthy
+    networks:
+      - lawforyou-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  lawforyou-net:
+    external: true
+    name: lawforyou-net
+

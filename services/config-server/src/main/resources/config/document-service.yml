@@ -1,12 +1,12 @@
 # Config Server — document-service overrides
-# Merged with config/application.yml (shared defaults) at runtime.
+# Hostnames are Docker service/container names on lawforyou-net.
 
 spring:
   data:
     mongodb:
-      uri: mongodb://localhost:27017/document_db
+      uri: mongodb://lawforyou-mongodb:27017/document_db
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka:29092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -22,9 +22,9 @@ server:
 
 app:
   minio:
-    endpoint: http://localhost:9000
-    access-key: minioadmin
-    secret-key: minioadmin
+    endpoint: http://lawforyou-minio:9000
+    access-key: ${MINIO_ROOT_USER:minioadmin}
+    secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
     bucket-name: lawforyou-documents
   outbox:
     relay-delay-ms: 5000

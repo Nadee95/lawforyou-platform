@@ -1,0 +1,221 @@
+{
+  "uid": "jvm-overview",
+  "title": "JVM Overview",
+  "tags": ["jvm", "lawforyou"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "custom",
+        "query": "api-gateway,user-service,case-service,document-service,config-server,eureka-server",
+        "current": { "text": "user-service", "value": "user-service" },
+        "options": [
+          { "text": "api-gateway",     "value": "api-gateway" },
+          { "text": "user-service",    "value": "user-service" },
+          { "text": "case-service",    "value": "case-service" },
+          { "text": "document-service","value": "document-service" },
+          { "text": "config-server",   "value": "config-server" },
+          { "text": "eureka-server",   "value": "eureka-server" }
+        ],
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Heap Used",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 268435456 },
+            { "color": "red", "value": 536870912 }
+          ]}
+        }
+      },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "sum(jvm_memory_used_bytes{job=\"$service\", area=\"heap\"})",
+        "legendFormat": "Heap Used"
+      }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Heap Max",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "sum(jvm_memory_max_bytes{job=\"$service\", area=\"heap\"})",
+        "legendFormat": "Heap Max"
+      }]
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "Heap Usage %",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 70 },
+            { "color": "red", "value": 90 }
+          ]}
+        }
+      },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "100 * sum(jvm_memory_used_bytes{job=\"$service\", area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"$service\", area=\"heap\"})",
+        "legendFormat": "Heap %"
+      }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "CPU Usage",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 0.5 },
+            { "color": "red", "value": 0.8 }
+          ]}
+        }
+      },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "process_cpu_usage{job=\"$service\"}",
+        "legendFormat": "CPU"
+      }]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Live Threads",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "jvm_threads_live_threads{job=\"$service\"}",
+        "legendFormat": "Threads"
+      }]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Uptime",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "process_uptime_seconds{job=\"$service\"}",
+        "legendFormat": "Uptime"
+      }]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Heap Memory Over Time",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "sum(jvm_memory_used_bytes{job=\"$service\", area=\"heap\"})",
+          "legendFormat": "Used"
+        },
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "sum(jvm_memory_committed_bytes{job=\"$service\", area=\"heap\"})",
+          "legendFormat": "Committed"
+        },
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "sum(jvm_memory_max_bytes{job=\"$service\", area=\"heap\"})",
+          "legendFormat": "Max"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "CPU & Threads Over Time",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "process_cpu_usage{job=\"$service\"}",
+          "legendFormat": "CPU Usage"
+        },
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "jvm_threads_live_threads{job=\"$service\"} / 100",
+          "legendFormat": "Threads / 100"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "GC Pause Duration",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [{
+        "datasource": { "uid": "prometheus" },
+        "expr": "rate(jvm_gc_pause_seconds_sum{job=\"$service\"}[5m])",
+        "legendFormat": "{{action}} {{cause}}"
+      }]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Non-Heap Memory",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "sum(jvm_memory_used_bytes{job=\"$service\", area=\"nonheap\"})",
+          "legendFormat": "Non-Heap Used"
+        },
+        {
+          "datasource": { "uid": "prometheus" },
+          "expr": "sum(jvm_memory_committed_bytes{job=\"$service\", area=\"nonheap\"})",
+          "legendFormat": "Non-Heap Committed"
+        }
+      ]
+    }
+  ]
+}
+
