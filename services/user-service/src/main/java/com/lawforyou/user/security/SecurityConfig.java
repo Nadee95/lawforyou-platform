@@ -1,6 +1,8 @@
 package com.lawforyou.user.security;
 
 import com.nadeex.spring.security.config.SecurityFilterChainConfigurer;
+import com.nadeex.spring.security.filter.JwtAuthenticationFilter;
+import com.lawforyou.user.service.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,14 +36,21 @@ public class SecurityConfig {
 
     private final UserDetailsServiceImpl        userDetailsService;
     private final SecurityFilterChainConfigurer securityFilterChainConfigurer;
+    private final TokenBlacklistService         tokenBlacklistService;
+
+    @Bean
+    public TokenBlacklistFilter tokenBlacklistFilter() {
+        return new TokenBlacklistFilter(tokenBlacklistService);
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return securityFilterChainConfigurer.build(http, auth -> auth
+        SecurityFilterChain chain = securityFilterChainConfigurer.build(http, auth -> auth
                 // Public — authentication endpoints
                 .requestMatchers(HttpMethod.POST,
                         "/api/auth/login",
-                        "/api/auth/register").permitAll()
+                        "/api/auth/register",
+                        "/api/auth/logout").permitAll()
                 // Public — infrastructure & observability
                 .requestMatchers(
                         "/actuator/health",
@@ -50,6 +59,8 @@ public class SecurityConfig {
                 // Everything else requires authentication
                 .anyRequest().authenticated()
         );
+        http.addFilterBefore(tokenBlacklistFilter(), JwtAuthenticationFilter.class);
+        return chain;
     }
 
     @Bean

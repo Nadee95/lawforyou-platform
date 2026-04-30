@@ -63,5 +63,17 @@ public class AuthController {
             case AuthResult.Failure f -> throw new UnauthorizedException(f.reason());
         };
     }
+
+    @Operation(summary = "Logout and invalidate the current JWT")
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @RequestHeader("Authorization") String authHeader) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new UnauthorizedException("Missing or invalid Authorization header");
+        }
+        userService.logout(authHeader.substring(7));
+        return ResponseEntity.ok(ApiResponse.success(null, "Logged out successfully"));
+    }
 }
 

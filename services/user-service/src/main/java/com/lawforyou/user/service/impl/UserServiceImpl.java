@@ -17,6 +17,7 @@ import com.lawforyou.user.repository.RoleRepository;
 import com.lawforyou.user.repository.UserRepository;
 import com.nadeex.spring.security.properties.SecurityProperties;
 import com.nadeex.spring.security.token.JwtTokenProvider;
+import com.lawforyou.user.service.TokenBlacklistService;
 import com.lawforyou.user.service.UserService;
 import com.nadeex.spring.common.exception.ErrorCode;
 import com.nadeex.spring.common.response.PagedResponse;
@@ -42,15 +43,16 @@ import java.util.UUID;
 @Transactional
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository   userRepository;
-    private final RoleRepository   roleRepository;
-    private final UserMapper       userMapper;
-    private final PasswordEncoder  passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository        userRepository;
+    private final RoleRepository        roleRepository;
+    private final UserMapper            userMapper;
+    private final PasswordEncoder       passwordEncoder;
+    private final JwtTokenProvider      jwtTokenProvider;
     private final SecurityProperties    jwtProperties;
-    private final EntityManager     entityManager;
-    private final ObjectMapper      objectMapper;
+    private final EntityManager         entityManager;
+    private final ObjectMapper          objectMapper;
     private final OutboxEventRepository outboxEventRepository;
+    private final TokenBlacklistService tokenBlacklistService;
 
 
     // ── Register ─────────────────────────────────────────────────────────────
@@ -276,6 +278,14 @@ public class UserServiceImpl implements UserService {
             throw new EventSerializationException(
                     "Failed to serialise outbox event: " + obj.getClass().getSimpleName(), ex);
         }
+    }
+
+    // ── Logout ────────────────────────────────────────────────────────────────
+
+    @Override
+    public void logout(String token) {
+        tokenBlacklistService.blacklist(token, jwtProperties.getExpirationMs());
+        log.info("User logged out — token blacklisted");
     }
 
 }
