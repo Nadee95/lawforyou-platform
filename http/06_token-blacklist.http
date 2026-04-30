@@ -1,0 +1,98 @@
+# ============================================================
+# 06 — TOKEN BLACKLIST (Redis Logout)
+#
+# Tests the full logout + blacklist cycle:
+#   1. Login           → captures jwt_token
+#   2. Secured call    → 200 (token is valid)
+#   3. Logout          → token added to Redis blacklist
+#   4. Secured call    → 401 (token is blacklisted)
+#
+# Run requests IN ORDER — each step depends on the previous.
+# ============================================================
+
+### 1 — Login as Admin (captures JWT into {{jwt_token}})
+# @name loginForBlacklistTest
+POST {{userService}}/api/auth/login
+X-Tenant-ID: {{tenantId}}
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "{{adminEmail}}",
+  "password":        "{{adminPassword}}"
+}
+
+> {%
+  client.test("Login succeeded", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+
+  var token = response.body.data && response.body.data.accessToken;
+  client.test("Token present", function () {
+    client.assert(!!token, "data.accessToken missing from response");
+  });
+
+  if (token) {
+    client.global.set("jwt_token", token);
+    client.log("✓ jwt_token saved — proceed to step 2.");
+  }
+%}
+
+###
+
+### 2 — Secured request BEFORE logout (expect 200)
+# @name securedBeforeLogout
+GET {{userService}}/api/users
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+> {%
+  client.test("Secured endpoint reachable before logout", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+  client.log("✓ Token is valid — ready to logout.");
+%}
+
+###
+
+### 3 — Logout (adds token to Redis blacklist)
+# @name logout
+POST {{userService}}/api/auth/logout
+Authorization: Bearer {{jwt_token}}
+
+> {%
+  client.test("Logout succeeded", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+
+  var msg = response.body && response.body.message;
+  client.test("Logout message present", function () {
+    client.assert(!!msg, "Expected a message field in response");
+  });
+
+  client.log("✓ Logged out — token is now blacklisted in Redis. Run step 4.");
+%}
+
+###
+
+### 4 — Secured request AFTER logout (expect 401 — token is blacklisted)
+# @name securedAfterLogout
+GET {{userService}}/api/users
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+> {%
+  client.test("Blacklisted token rejected with 401", function () {
+    client.assert(response.status === 401, "Expected 401, got " + response.status);
+  });
+
+  var msg = response.body && response.body.message;
+  client.test("Rejection message mentions invalidation", function () {
+    client.assert(msg && msg.indexOf("invalidated") !== -1,
+      "Expected 'invalidated' in message, got: " + msg);
+  });
+
+  client.log("✓ Redis blacklist is working correctly.");
+%}
+
+###
+

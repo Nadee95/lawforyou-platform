@@ -38,5 +38,8 @@ public interface UserService {
 
     /** Removes a role from a user. */
     UserDto removeRole(UUID userId, UUID tenantId, UUID roleId);
+
+    /** Invalidates the given JWT by adding it to the Redis blacklist. */
+    void logout(String token);
 }
 
