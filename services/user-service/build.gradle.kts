@@ -72,12 +72,49 @@ tasks.test {
     finalizedBy(tasks.jacocoTestReport)
 }
 
+// Packages excluded from JaCoCo — Lombok-generated boilerplate or entry-points not worth testing
+val jacocoExclusions = listOf(
+    "**/entity/**",           // JPA entities: @Data/@Getter/@Setter — all Lombok
+    "**/UserServiceApplication.class", // Spring Boot main()
+)
+
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) { exclude(jacocoExclusions) }
+        })
+    )
     reports {
         xml.required.set(true)
         html.required.set(true)
     }
+}
+
+tasks.jacocoTestCoverageVerification {
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) { exclude(jacocoExclusions) }
+        })
+    )
+    violationRules {
+        rule {
+            limit {
+                counter = "INSTRUCTION"
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+        rule {
+            limit {
+                counter = "BRANCH"
+                minimum = "0.60".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(tasks.jacocoTestCoverageVerification)
 }
 
 
