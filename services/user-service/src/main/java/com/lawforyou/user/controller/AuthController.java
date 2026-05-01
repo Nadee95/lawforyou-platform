@@ -58,7 +58,9 @@ public class AuthController {
         return switch (userService.authenticate(request, tenantId)) {
             case AuthResult.Success s -> ResponseEntity.ok(
                     ApiResponse.success(
-                            LoginResponse.of(s.token(), s.expiresIn(), s.user()),
+                            s.refreshToken() != null
+                                    ? LoginResponse.ofKeycloak(s.token(), s.refreshToken(), s.expiresIn(), s.user())
+                                    : LoginResponse.of(s.token(), s.expiresIn(), s.user()),
                             "Login successful"));
             case AuthResult.Failure f -> throw new UnauthorizedException(f.reason());
         };

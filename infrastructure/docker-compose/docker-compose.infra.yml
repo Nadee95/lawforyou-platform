@@ -159,6 +159,51 @@ services:
     networks:
       - lawforyou-net
 
+  # ── Keycloak (SSO / OAuth2 Identity Provider — Phase 2+) ─────────────
+  # Admin UI  : http://localhost:8180  (admin / admin)
+  # Realm     : lawforyou
+  # JWKS URI  : http://localhost:8180/realms/lawforyou/protocol/openid-connect/certs
+  # Token URL : http://localhost:8180/realms/lawforyou/protocol/openid-connect/token
+  #
+  # start-dev is for local development only.
+  # Use `start` with proper TLS + hostname settings for staging/production.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: lawforyou-keycloak
+    command: start-dev --import-realm
+    environment:
+      # PostgreSQL backend (keycloak_db created by init-db.sql)
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: ${POSTGRES_USER:-lawforyou}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-lawforyou}
+      # Admin credentials
+      KEYCLOAK_ADMIN: ${KC_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin}
+      # Dev-mode network settings
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    ports:
+      - "8180:8080"   # Keycloak HTTP (main)
+      - "9180:9000"   # Keycloak management (health, metrics)
+    volumes:
+      # Realm + dev users imported once on first start (skipped if realm exists)
+      - ../keycloak:/opt/keycloak/data/import
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lawforyou-net
+    healthcheck:
+      # Health is on the management interface (port 9000), NOT the main port (8080)
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s   # Keycloak takes ~60 s on first boot with DB migration
+
 volumes:
   postgres_data:
   prometheus_data:

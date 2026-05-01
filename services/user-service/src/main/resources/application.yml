@@ -66,6 +66,15 @@ app:
   jwt:
     secret: ${JWT_SECRET:lawforyou-dev-secret-change-in-production-must-be-32chars}
     expiration-ms: 86400000
+  keycloak:
+    # Set enabled=true to activate Keycloak Admin API integration.
+    # Requires Keycloak to be running and the lawforyou realm imported.
+    # Keep false in tests and local dev without Keycloak.
+    enabled: ${KEYCLOAK_ENABLED:false}
+    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8180}
+    realm: ${KEYCLOAK_REALM:lawforyou}
+    client-id: ${KEYCLOAK_CLIENT_ID:lawforyou-backend}
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:lawforyou-backend-secret}
   outbox:
     relay-delay-ms: 5000   # how often OutboxRelay polls for PENDING events (ms)
 

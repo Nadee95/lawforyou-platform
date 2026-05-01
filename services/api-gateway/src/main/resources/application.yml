@@ -100,6 +100,11 @@ app:
   jwt:
     secret: ${JWT_SECRET:lawforyou-dev-secret-change-in-production-must-be-32chars}
     expiration-ms: 86400000
+  keycloak:
+    # JWKS URI for Keycloak RS256 token validation.
+    # Local dev : http://localhost:8180/realms/lawforyou/protocol/openid-connect/certs
+    # Docker    : http://lawforyou-keycloak:8080/realms/lawforyou/protocol/openid-connect/certs
+    jwks-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8180/realms/lawforyou/protocol/openid-connect/certs}
 
 # ── Actuator ─────────────────────────────────────────────────────────────────
 management:

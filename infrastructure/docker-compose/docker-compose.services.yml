@@ -85,6 +85,8 @@ services:
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://lawforyou-jaeger:9411/api/v2/spans
       JWT_SECRET: ${JWT_SECRET:-lawforyou-dev-secret-change-in-production-must-be-32chars}
+      # Keycloak JWKS URI — uses container name when running in Docker
+      KEYCLOAK_JWKS_URI: http://lawforyou-keycloak:8080/realms/lawforyou/protocol/openid-connect/certs
     depends_on:
       config-server:
         condition: service_healthy
