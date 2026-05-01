@@ -8,6 +8,7 @@ import com.nadeex.spring.security.token.JwtTokenProvider;
 import com.nadeex.spring.security.userdetails.TenantAwareUserDetails;
 import com.lawforyou.user.security.SecurityConfig;
 import com.lawforyou.user.security.UserDetailsServiceImpl;
+import com.lawforyou.user.service.TokenBlacklistService;
 import com.lawforyou.user.service.UserService;
 import com.nadeex.spring.common.response.PagedResponse;
 import com.nadeex.spring.exception.handler.GlobalExceptionHandler;
@@ -56,6 +57,7 @@ class UserControllerTest {
     @Autowired ObjectMapper objectMapper;
 
     @MockitoBean UserService            userService;
+    @MockitoBean TokenBlacklistService  tokenBlacklistService;
     @MockitoBean UserDetailsServiceImpl userDetailsService;
     @MockitoBean JwtTokenProvider       jwtTokenProvider;
 
