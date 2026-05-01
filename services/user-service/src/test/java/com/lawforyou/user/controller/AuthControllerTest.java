@@ -9,6 +9,7 @@ import com.nadeex.spring.security.config.SecurityAutoConfiguration;
 import com.nadeex.spring.security.token.JwtTokenProvider;
 import com.lawforyou.user.security.SecurityConfig;
 import com.lawforyou.user.security.UserDetailsServiceImpl;
+import com.lawforyou.user.service.TokenBlacklistService;
 import com.lawforyou.user.service.UserService;
 import com.nadeex.spring.exception.handler.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
@@ -38,10 +39,11 @@ class AuthControllerTest {
     @Autowired MockMvc     mockMvc;
     @Autowired ObjectMapper objectMapper;
 
-    @MockitoBean UserService userService;
+    @MockitoBean UserService              userService;
+    @MockitoBean TokenBlacklistService    tokenBlacklistService;
 
-    @MockitoBean UserDetailsServiceImpl         userDetailsService;
-    @MockitoBean JwtTokenProvider               jwtTokenProvider;
+    @MockitoBean UserDetailsServiceImpl   userDetailsService;
+    @MockitoBean JwtTokenProvider         jwtTokenProvider;
 
     private static final UUID TENANT_ID = UUID.randomUUID();
 
