@@ -22,6 +22,8 @@ import com.nadeex.spring.exception.EventSerializationException;
 import com.nadeex.spring.exception.ResourceNotFoundException;
 import com.nadeex.spring.security.properties.SecurityProperties;
 import com.nadeex.spring.security.token.JwtTokenProvider;
+import com.lawforyou.user.keycloak.KeycloakAdminService;
+import com.lawforyou.user.service.TokenBlacklistService;
 import com.lawforyou.user.service.impl.UserServiceImpl;
 import com.nadeex.spring.exception.ConflictException;
 import jakarta.persistence.EntityManager;
@@ -59,6 +61,8 @@ class UserServiceTest {
     @Mock JwtTokenProvider  jwtTokenProvider;
     @Mock SecurityProperties jwtProperties;
     @Mock EntityManager     entityManager;
+    @Mock KeycloakAdminService keycloakAdminService;
+    @Mock TokenBlacklistService tokenBlacklistService;
 
 
     @InjectMocks UserServiceImpl userService;
@@ -105,6 +109,7 @@ class UserServiceTest {
                 .thenReturn(Optional.of(clientRole));
         when(passwordEncoder.encode(any())).thenReturn("hashed");
         when(userRepository.saveAndFlush(any())).thenReturn(savedUser);
+        when(keycloakAdminService.createUser(any(), any(), any())).thenReturn(Optional.empty());
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");   // ← toJson() mock
         when(outboxEventRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -271,6 +276,7 @@ class UserServiceTest {
         when(userRepository.saveAndFlush(any())).thenReturn(savedUser);
         // toDto must return non-null so writeValueAsString gets a value and the NPE in catch is avoided
         when(userMapper.toDto(savedUser)).thenReturn(mock(UserDto.class));
+        when(keycloakAdminService.createUser(any(), any(), any())).thenReturn(Optional.empty());
         when(objectMapper.writeValueAsString(any()))
                 .thenThrow(new JsonProcessingException("serialisation failure") {});
 

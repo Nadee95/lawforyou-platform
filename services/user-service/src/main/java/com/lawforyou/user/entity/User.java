@@ -71,6 +71,14 @@ public class User {
     private boolean active = true;
 
     /**
+     * Keycloak user UUID — populated on registration when Keycloak Admin API integration
+     * is enabled ({@code app.keycloak.enabled=true}). Null for users created before Phase 4
+     * or in test environments where Keycloak is disabled.
+     */
+    @Column(name = "keycloak_id", unique = true)
+    private UUID keycloakId;
+
+    /**
      * Roles assigned to this user. May include system roles and/or tenant-defined roles.
      * Loaded eagerly — roles are small sets used on every authenticated request.
      */

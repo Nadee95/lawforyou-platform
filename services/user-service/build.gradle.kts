@@ -74,8 +74,9 @@ tasks.test {
 
 // Packages excluded from JaCoCo — Lombok-generated boilerplate or entry-points not worth testing
 val jacocoExclusions = listOf(
-    "**/entity/**",           // JPA entities: @Data/@Getter/@Setter — all Lombok
+    "**/entity/**",                // JPA entities: @Data/@Getter/@Setter — all Lombok
     "**/UserServiceApplication.class", // Spring Boot main()
+    "**/keycloak/impl/**",         // Keycloak Admin REST client — requires live Keycloak; covered by E2E tests
 )
 
 tasks.jacocoTestReport {

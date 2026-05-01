@@ -19,6 +19,9 @@ dependencies {
     // Reactive security
     implementation("org.springframework.boot:spring-boot-starter-security")
 
+    // OAuth2 resource server — NimbusReactiveJwtDecoder for Keycloak RS256 JWKS validation
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
+
     // Redis — rate limiting + token blacklist
     implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
 
