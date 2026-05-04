@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Phase-3 dual-token filter: accepts both Keycloak RS256 tokens and legacy HS256 tokens.
+ * Phase-4/5 dual-token filter: accepts both Keycloak RS256 tokens and legacy HS256 tokens.
  *
  * <h3>Algorithm detection</h3>
  * The JWT header (first base64url segment) is decoded to read the {@code alg} field.
@@ -28,19 +28,21 @@ import java.util.Map;
  *   <li>Anything else → validated with {@link JwtTokenProvider} (shared HS256 secret)</li>
  * </ul>
  *
- * <h3>Downstream contract</h3>
- * After successful validation, regardless of the input token type:
+ * <h3>Downstream contract (Phase 5)</h3>
+ * After successful validation, the original Authorization header is <b>removed</b> and
+ * the following headers are injected for downstream services:
  * <ol>
- *   <li>{@code X-User-ID}, {@code X-Tenant-ID}, {@code X-Username} headers are injected.</li>
- *   <li>The original Authorization header is <b>replaced</b> with a new short-lived HS256
- *       gateway-internal token so downstream services can continue to validate JWT normally
- *       without any Phase-3 changes.</li>
+ *   <li>{@code X-User-ID}   — authenticated user UUID</li>
+ *   <li>{@code X-Tenant-ID} — tenant UUID from JWT claims</li>
+ *   <li>{@code X-Username}  — username / preferred_username</li>
  * </ol>
+ * Downstream services use {@code HeaderAuthenticationFilter} (nadeex-spring-security:0.3.0)
+ * to build their {@code SecurityContext} from these headers — no JWT re-validation.
  *
  * <h3>Phase roadmap</h3>
  * <ul>
- *   <li><b>Phase 3 (now)</b>: dual validation + HS256 internal token for backward compat.</li>
- *   <li><b>Phase 5</b>: downstream services become OAuth2 resource servers → internal token generation removed.</li>
+ *   <li><b>Phase 4</b>: dual validation + HS256 internal token re-issue for backward compat.</li>
+ *   <li><b>Phase 5 (now)</b>: internal HS256 re-issue removed; downstream uses header-auth.</li>
  *   <li><b>Phase 8</b>: legacy HS256 fallback and {@code jjwt-*} dependencies removed.</li>
  * </ul>
  */
@@ -50,10 +52,12 @@ import java.util.Map;
 public class DualTokenAuthenticationFilter implements GlobalFilter, Ordered {
 
     private static final String BEARER_PREFIX    = "Bearer ";
-    private static final String HEADER_AUTH      = "Authorization";
-    private static final String HEADER_USER_ID   = "X-User-ID";
-    private static final String HEADER_TENANT_ID = "X-Tenant-ID";
-    private static final String HEADER_USERNAME  = "X-Username";
+    private static final String HEADER_AUTH        = "Authorization";
+    private static final String HEADER_USER_ID     = "X-User-ID";
+    private static final String HEADER_TENANT_ID   = "X-Tenant-ID";
+    private static final String HEADER_USERNAME    = "X-Username";
+    private static final String HEADER_ROLES       = "X-Roles";
+    private static final String HEADER_PERMISSIONS = "X-Permissions";
 
     private static final List<String> PUBLIC_PATHS = List.of(
             "/api/auth/", "/actuator/", "/v3/api-docs", "/swagger-ui"
@@ -101,7 +105,8 @@ public class DualTokenAuthenticationFilter implements GlobalFilter, Ordered {
                     String userId   = jwt.getClaimAsString("user_id");
                     String tenantId = jwt.getClaimAsString("tenant_id");
                     String username = jwt.getClaimAsString("preferred_username");
-                    List<String> roles = jwt.getClaimAsStringList("roles");
+                    List<String> roles       = jwt.getClaimAsStringList("roles");
+                    List<String> permissions = jwt.getClaimAsStringList("permissions");
 
                     if (userId == null || tenantId == null) {
                         log.warn("Keycloak token missing required claims (user_id={}, tenant_id={})",
@@ -111,7 +116,7 @@ public class DualTokenAuthenticationFilter implements GlobalFilter, Ordered {
 
                     log.debug("KC RS256 ok userId={} tenantId={} path={}",
                             userId, tenantId, exchange.getRequest().getURI().getPath());
-                    return proceed(exchange, chain, userId, tenantId, username, roles, "KC");
+                    return proceed(exchange, chain, userId, tenantId, username, roles, permissions, "KC");
                 })
                 .onErrorResume(e -> {
                     log.warn("Keycloak token validation failed: {}", e.getMessage());
@@ -132,33 +137,40 @@ public class DualTokenAuthenticationFilter implements GlobalFilter, Ordered {
         String userId   = legacyJwtProvider.getUserId(token).toString();
         String tenantId = legacyJwtProvider.getTenantId(token).toString();
         String username = legacyJwtProvider.getUsername(token);
-        List<String> roles = legacyJwtProvider.getRoles(token);
+        List<String> roles       = legacyJwtProvider.getRoles(token);
+        List<String> permissions = legacyJwtProvider.getPermissions(token);
 
         log.debug("HS256 ok userId={} tenantId={} path={}",
                 userId, tenantId, exchange.getRequest().getURI().getPath());
-        return proceed(exchange, chain, userId, tenantId, username, roles, "HS256");
+        return proceed(exchange, chain, userId, tenantId, username, roles, permissions, "HS256");
     }
 
     // ── Common continuation ───────────────────────────────────────────────────
 
     /**
-     * Injects tenant/user headers and replaces the Authorization header with a
-     * fresh HS256 gateway-internal token for backward-compatible downstream validation.
+     * Phase 5: Injects tenant/user identity headers and strips the Authorization header.
+     * Downstream services authenticate via {@code HeaderAuthenticationFilter} — no JWT
+     * re-validation and no internal HS256 token re-issuance.
      */
     private Mono<Void> proceed(ServerWebExchange exchange, GatewayFilterChain chain,
                                 String userId, String tenantId, String username,
-                                List<String> roles, String tokenType) {
-        // Generate a new short-lived HS256 token downstream services can validate
-        String internalToken = legacyJwtProvider.generateToken(userId, tenantId, username, roles);
+                                List<String> roles, List<String> permissions, String tokenType) {
+
+        String rolesHeader       = roles       != null ? String.join(",", roles)       : "";
+        String permissionsHeader = permissions != null ? String.join(",", permissions) : "";
 
         ServerHttpRequest mutated = exchange.getRequest().mutate()
-                .header(HEADER_USER_ID,   userId)
-                .header(HEADER_TENANT_ID, tenantId)
-                .header(HEADER_USERNAME,  username != null ? username : "")
-                .header(HEADER_AUTH, BEARER_PREFIX + internalToken)
+                .header(HEADER_USER_ID,     userId)
+                .header(HEADER_TENANT_ID,   tenantId)
+                .header(HEADER_USERNAME,    username != null ? username : "")
+                .header(HEADER_ROLES,       rolesHeader)
+                .header(HEADER_PERMISSIONS, permissionsHeader)
+                // Remove the original Authorization header — downstream services do not
+                // re-validate tokens; they trust the X-User-ID / X-Tenant-ID headers.
+                .headers(h -> h.remove(HEADER_AUTH))
                 .build();
 
-        log.debug("[{}] → userId={} tenantId={}", tokenType, userId, tenantId);
+        log.debug("[{}] → userId={} tenantId={} roles={}", tokenType, userId, tenantId, rolesHeader);
         return chain.filter(exchange.mutate().request(mutated).build());
     }
 

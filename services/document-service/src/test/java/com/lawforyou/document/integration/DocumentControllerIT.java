@@ -4,7 +4,6 @@ import com.lawforyou.document.model.DocumentCategory;
 import com.lawforyou.document.model.DocumentMetadata;
 import com.lawforyou.document.repository.DocumentMetadataRepository;
 import com.lawforyou.document.repository.OutboxEventRepository;
-import com.nadeex.spring.security.token.JwtTokenProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -36,7 +36,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Full-stack integration tests for the Document Service.
  *
- * <p>JWT tokens are generated directly via {@link JwtTokenProvider} — same pattern as case-service IT.</p>
+ * <p>Authentication is simulated by injecting gateway headers ({@code X-User-ID},
+ * {@code X-Tenant-ID}, {@code X-Roles}, {@code X-Permissions}) matching Phase 5
+ * header-based internal auth — no JWT generation required.</p>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
@@ -75,7 +77,6 @@ class DocumentControllerIT {
     @Autowired MockMvc                    mockMvc;
     @Autowired DocumentMetadataRepository documentMetadataRepository;
     @Autowired OutboxEventRepository      outboxEventRepository;
-    @Autowired JwtTokenProvider           jwtTokenProvider;
 
     private static final UUID   TENANT_ID  = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final String TENANT_STR = TENANT_ID.toString();
@@ -88,8 +89,17 @@ class DocumentControllerIT {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private String jwtFor(UUID userId, List<String> roles) {
-        return jwtTokenProvider.generateToken(userId, TENANT_ID, "testuser", roles, List.of());
+    /**
+     * Applies gateway-injected identity headers to a MockMvc request builder.
+     * Simulates what {@code DualTokenAuthenticationFilter} does after JWT validation.
+     */
+    private MockHttpServletRequestBuilder withAuth(MockHttpServletRequestBuilder builder) {
+        return builder
+                .header("X-User-ID",     UUID.randomUUID().toString())
+                .header("X-Tenant-ID",   TENANT_STR)
+                .header("X-Username",    "testuser")
+                .header("X-Roles",       "LAWYER")
+                .header("X-Permissions", "");
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -102,7 +112,6 @@ class DocumentControllerIT {
     @Test
     void upload_validRequest_returns201AndPersistsMetadata() throws Exception {
         UUID caseId = UUID.randomUUID();
-        String jwt  = jwtFor(UUID.randomUUID(), List.of("LAWYER"));
 
         MockMultipartFile file = new MockMultipartFile(
                 "file", "contract.pdf", "application/pdf", "PDF content".getBytes());
@@ -114,12 +123,10 @@ class DocumentControllerIT {
         MockMultipartFile metadataPart = new MockMultipartFile(
                 "metadata", "", "application/json", metadataJson.getBytes());
 
-        mockMvc.perform(multipart("/api/v1/documents")
+        mockMvc.perform(withAuth(multipart("/api/v1/documents")
                         .file(file)
                         .file(metadataPart)
-                        .contentType(MediaType.MULTIPART_FORM_DATA)
-                        .header("Authorization", "Bearer " + jwt)
-                        .header("X-Tenant-ID", TENANT_STR))
+                        .contentType(MediaType.MULTIPART_FORM_DATA)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.originalFilename").value("contract.pdf"))
@@ -138,7 +145,7 @@ class DocumentControllerIT {
     }
 
     @Test
-    void upload_withoutToken_returns401() throws Exception {
+    void upload_withoutHeaders_returns401() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "test.pdf", "application/pdf", "content".getBytes());
         MockMultipartFile metadataPart = new MockMultipartFile(
@@ -155,7 +162,7 @@ class DocumentControllerIT {
     // ── Helper ────────────────────────────────────────────────────────────────
 
     /** Uploads a document and returns its ID from the response body. */
-    private String uploadAndGetId(UUID caseId, String jwt) throws Exception {
+    private String uploadAndGetId(UUID caseId) throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "brief.pdf", "application/pdf", "PDF content".getBytes());
         String metadataJson = """
@@ -164,12 +171,10 @@ class DocumentControllerIT {
         MockMultipartFile metadataPart = new MockMultipartFile(
                 "metadata", "", "application/json", metadataJson.getBytes());
 
-        String body = mockMvc.perform(multipart("/api/v1/documents")
+        String body = mockMvc.perform(withAuth(multipart("/api/v1/documents")
                         .file(file)
                         .file(metadataPart)
-                        .contentType(MediaType.MULTIPART_FORM_DATA)
-                        .header("Authorization", "Bearer " + jwt)
-                        .header("X-Tenant-ID", TENANT_STR))
+                        .contentType(MediaType.MULTIPART_FORM_DATA)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
@@ -182,12 +187,9 @@ class DocumentControllerIT {
     @Test
     void getById_existingDocument_returns200WithMetadata() throws Exception {
         UUID caseId = UUID.randomUUID();
-        String jwt   = jwtFor(UUID.randomUUID(), List.of("LAWYER"));
-        String docId = uploadAndGetId(caseId, jwt);
+        String docId = uploadAndGetId(caseId);
 
-        mockMvc.perform(get("/api/v1/documents/{id}", docId)
-                        .header("Authorization", "Bearer " + jwt)
-                        .header("X-Tenant-ID", TENANT_STR))
+        mockMvc.perform(withAuth(get("/api/v1/documents/{id}", docId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(docId))
                 .andExpect(jsonPath("$.data.originalFilename").value("brief.pdf"))
@@ -196,11 +198,7 @@ class DocumentControllerIT {
 
     @Test
     void getById_unknownDocument_returns404() throws Exception {
-        String jwt = jwtFor(UUID.randomUUID(), List.of("LAWYER"));
-
-        mockMvc.perform(get("/api/v1/documents/{id}", "non-existent-id")
-                        .header("Authorization", "Bearer " + jwt)
-                        .header("X-Tenant-ID", TENANT_STR))
+        mockMvc.perform(withAuth(get("/api/v1/documents/{id}", "non-existent-id")))
                 .andExpect(status().isNotFound());
     }
 
@@ -209,19 +207,14 @@ class DocumentControllerIT {
     @Test
     void delete_existingDocument_returns204AndDocumentIsGone() throws Exception {
         UUID caseId = UUID.randomUUID();
-        String jwt   = jwtFor(UUID.randomUUID(), List.of("LAWYER"));
-        String docId = uploadAndGetId(caseId, jwt);
+        String docId = uploadAndGetId(caseId);
 
         // Delete it
-        mockMvc.perform(delete("/api/v1/documents/{id}", docId)
-                        .header("Authorization", "Bearer " + jwt)
-                        .header("X-Tenant-ID", TENANT_STR))
+        mockMvc.perform(withAuth(delete("/api/v1/documents/{id}", docId)))
                 .andExpect(status().isNoContent());
 
         // Verify soft-deleted — subsequent GET returns 404
-        mockMvc.perform(get("/api/v1/documents/{id}", docId)
-                        .header("Authorization", "Bearer " + jwt)
-                        .header("X-Tenant-ID", TENANT_STR))
+        mockMvc.perform(withAuth(get("/api/v1/documents/{id}", docId)))
                 .andExpect(status().isNotFound());
     }
 
@@ -230,15 +223,12 @@ class DocumentControllerIT {
     @Test
     void listByCase_returns200WithUploadedDocuments() throws Exception {
         UUID caseId = UUID.randomUUID();
-        String jwt  = jwtFor(UUID.randomUUID(), List.of("LAWYER"));
 
         // Upload two documents for the same case
-        uploadAndGetId(caseId, jwt);
-        uploadAndGetId(caseId, jwt);
+        uploadAndGetId(caseId);
+        uploadAndGetId(caseId);
 
-        mockMvc.perform(get("/api/v1/documents/case/{caseId}", caseId)
-                        .header("Authorization", "Bearer " + jwt)
-                        .header("X-Tenant-ID", TENANT_STR))
+        mockMvc.perform(withAuth(get("/api/v1/documents/case/{caseId}", caseId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.totalElements").value(2));

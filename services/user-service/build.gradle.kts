@@ -3,12 +3,17 @@ plugins {
     jacoco
 }
 
+val nadeexCommonVersion:    String by rootProject.extra
+val nadeexExceptionVersion: String by rootProject.extra
+val nadeexLoggingVersion:   String by rootProject.extra
+val nadeexSecurityVersion:  String by rootProject.extra
+
 dependencies {
     // Nadeex shared libraries
-    implementation("com.nadeex.spring:common:0.1.0")
-    implementation("com.nadeex.spring:exception:0.2.0")
-    implementation("com.nadeex.spring:logging:0.1.0")
-    implementation("com.nadeex.spring:security:0.2.0")
+    implementation("com.nadeex.spring:common:$nadeexCommonVersion")
+    implementation("com.nadeex.spring:exception:$nadeexExceptionVersion")
+    implementation("com.nadeex.spring:logging:$nadeexLoggingVersion")
+    implementation("com.nadeex.spring:security:$nadeexSecurityVersion")
 
     // Web + Validation
     implementation("org.springframework.boot:spring-boot-starter-web")

@@ -22,17 +22,6 @@
   "refreshTokenMaxReuse": 0,
   "revokeRefreshToken": false,
 
-  "userProfileConfig": {
-    "attributes": [
-      {"name": "username", "displayName": "${username}", "validations": {}, "permissions": {"view": ["admin", "user"], "edit": ["admin", "user"]}, "multivalued": false},
-      {"name": "email", "displayName": "${email}", "validations": {"email": {}, "length": {"max": 255}}, "required": {"roles": ["user"]}, "permissions": {"view": ["admin", "user"], "edit": ["admin", "user"]}, "multivalued": false},
-      {"name": "firstName", "displayName": "${firstName}", "validations": {"length": {"max": 255}, "person-name-prohibited-characters": {}}, "permissions": {"view": ["admin", "user"], "edit": ["admin", "user"]}, "multivalued": false},
-      {"name": "lastName", "displayName": "${lastName}", "validations": {"length": {"max": 255}, "person-name-prohibited-characters": {}}, "permissions": {"view": ["admin", "user"], "edit": ["admin", "user"]}, "multivalued": false},
-      {"name": "tenant_id", "displayName": "Tenant ID", "validations": {}, "permissions": {"view": ["admin"], "edit": ["admin"]}, "multivalued": false, "annotations": {}},
-      {"name": "user_id", "displayName": "PostgreSQL User ID", "validations": {}, "permissions": {"view": ["admin"], "edit": ["admin"]}, "multivalued": false, "annotations": {}}
-    ],
-    "unmanagedAttributePolicy": "ADMIN_EDIT"
-  },
 
   "roles": {
     "realm": [
@@ -160,6 +149,22 @@
             "jsonType.label": "String",
             "userinfo.token.claim": "true"
           }
+        },
+        {
+          "name": "permissions-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "permissions",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "permissions",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "aggregate.attrs": "false",
+            "userinfo.token.claim": "false"
+          }
         }
       ]
     }
@@ -184,7 +189,13 @@
       "emailVerified": true,
       "attributes": {
         "tenant_id": ["00000000-0000-0000-0000-000000000001"],
-        "user_id":   ["00000000-0000-0000-0000-000000000010"]
+        "user_id":   ["00000000-0000-0000-0000-000000000010"],
+        "permissions": [
+          "CASE_CREATE", "CASE_READ", "CASE_UPDATE", "CASE_ASSIGN", "CASE_DELETE",
+          "USER_READ", "USER_CREATE", "USER_UPDATE", "USER_DELETE",
+          "DOCUMENT_READ", "DOCUMENT_UPLOAD", "DOCUMENT_DELETE",
+          "NOTIFICATION_READ"
+        ]
       },
       "credentials": [
         {
@@ -205,7 +216,12 @@
       "emailVerified": true,
       "attributes": {
         "tenant_id": ["00000000-0000-0000-0000-000000000001"],
-        "user_id":   ["00000000-0000-0000-0000-000000000011"]
+        "user_id":   ["00000000-0000-0000-0000-000000000011"],
+        "permissions": [
+          "CASE_READ", "CASE_UPDATE", "CASE_ASSIGN",
+          "DOCUMENT_READ", "DOCUMENT_UPLOAD",
+          "NOTIFICATION_READ"
+        ]
       },
       "credentials": [
         {
@@ -226,7 +242,12 @@
       "emailVerified": true,
       "attributes": {
         "tenant_id": ["00000000-0000-0000-0000-000000000001"],
-        "user_id":   ["00000000-0000-0000-0000-000000000012"]
+        "user_id":   ["00000000-0000-0000-0000-000000000012"],
+        "permissions": [
+          "CASE_READ",
+          "DOCUMENT_READ",
+          "NOTIFICATION_READ"
+        ]
       },
       "credentials": [
         {
