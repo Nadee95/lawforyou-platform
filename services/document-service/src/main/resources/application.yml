@@ -45,11 +45,10 @@ management:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
 
-# JWT config served by Config Server. Fallback for local dev without Config Server.
+# Phase 5: JWT validation moved to api-gateway (DualTokenAuthenticationFilter).
+# document-service now trusts X-User-ID / X-Tenant-ID headers injected by the gateway.
+# app.jwt.* properties are no longer needed here.
 app:
-  jwt:
-    secret: ${JWT_SECRET:lawforyou-dev-secret-change-in-production-must-be-32chars}
-    expiration-ms: 86400000
   minio:
     endpoint: http://localhost:9000
     access-key: minioadmin

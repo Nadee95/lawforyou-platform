@@ -49,9 +49,10 @@ Content-Type: application/json
     client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
   });
 
-  var token = response.body.data && response.body.data.accessToken;
+  var token = response.body && response.body.data && response.body.data.accessToken;
   client.test("Token present in response", function () {
-    client.assert(!!token, "data.accessToken was missing from response");
+    client.assert(!!token, "data.accessToken was missing from response"
+      + (response.body ? "" : " (body is null — response may not be JSON)"));
   });
 
   if (token) {
@@ -84,9 +85,10 @@ Content-Type: application/json
         client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
     });
 
-    var token = response.body.data && response.body.data.accessToken;
+    var token = response.body && response.body.data && response.body.data.accessToken;
     client.test("Token present in response", function () {
-        client.assert(!!token, "data.accessToken was missing from response");
+        client.assert(!!token, "data.accessToken was missing from response"
+          + (response.body ? "" : " (body is null)"));
     });
 
     if (token) {
@@ -113,7 +115,7 @@ Content-Type: application/json
     client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
   });
 
-  var token = response.body.data && response.body.data.accessToken;
+  var token = response.body && response.body.data && response.body.data.accessToken;
   if (token) {
     client.global.set("jwt_token", token);
     client.log("✓ jwt_token saved (LAWYER) — CASE_CREATE / CASE_ASSIGN / DOCUMENT_* ready.");

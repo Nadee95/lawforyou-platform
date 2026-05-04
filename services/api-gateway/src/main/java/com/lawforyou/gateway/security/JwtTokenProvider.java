@@ -61,7 +61,14 @@ public class JwtTokenProvider {
 
     @SuppressWarnings("unchecked")
     public List<String> getRoles(String token) {
-        return (List<String>) parseClaims(token).getPayload().get(CLAIM_ROLES);
+        Object raw = parseClaims(token).getPayload().get(CLAIM_ROLES);
+        return raw instanceof List<?> list ? (List<String>) list : List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> getPermissions(String token) {
+        Object raw = parseClaims(token).getPayload().get("permissions");
+        return raw instanceof List<?> list ? (List<String>) list : List.of();
     }
 
     // ?? Generation (used by DualTokenAuthenticationFilter for internal tokens) ?

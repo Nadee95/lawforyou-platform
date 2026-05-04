@@ -1,0 +1,323 @@
+# ============================================================
+# 08 — END-TO-END OAUTH2 / KEYCLOAK FLOW
+#
+# Tests the FULL Phase 5 auth pipeline:
+#
+#   [Client] → Keycloak (RS256 token)
+#           → API Gateway (DualTokenAuthenticationFilter validates,
+#                          strips Authorization, injects X-User-ID /
+#                          X-Tenant-ID / X-Roles / X-Permissions)
+#           → case-service / document-service (HeaderAuthenticationFilter
+#                          reads gateway headers, builds SecurityContext)
+#
+# Run requests IN ORDER — each step captures vars for the next.
+#
+# Prerequisites:
+#   docker-compose -f infrastructure/docker-compose/docker-compose.infra.yml up -d
+#   All services started (api-gateway, case-service, document-service, user-service)
+# ============================================================
+
+### ── Step 1: Verify Keycloak is healthy ──────────────────────────
+# @name keycloakHealth
+GET {{keycloakMgmt}}/health/ready
+
+> {%
+  client.test("Keycloak is UP", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.status === "UP",
+      "Keycloak status not UP: " + (response.body ? response.body.status : "null"));
+  });
+  client.log("✓ Keycloak is healthy — proceed to step 2.");
+%}
+
+###
+
+### ── Step 2: Get Keycloak RS256 token (ROPC — dev only) ──────────
+# Direct Keycloak login (Resource Owner Password Credentials).
+# In production, use Authorization Code + PKCE from the frontend.
+# This simulates what user-service does internally when login is called.
+# @name kcLoginAdmin
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password
+&client_id={{keycloakClientId}}
+&client_secret={{keycloakClientSecret}}
+&username={{adminEmail}}
+&password={{adminPassword}}
+&scope=openid profile email
+
+> {%
+  client.test("Keycloak returned access_token", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.access_token, "No access_token in response");
+    client.assert(response.body.token_type === "Bearer", "Wrong token_type");
+    client.assert(response.body.refresh_token, "No refresh_token");
+  });
+
+  if (response.body && response.body.access_token) {
+    client.global.set("jwt_token",        response.body.access_token);
+    client.global.set("kc_access_token",  response.body.access_token);
+    client.global.set("kc_refresh_token", response.body.refresh_token);
+    client.log("✓ Keycloak RS256 access_token saved → proceed to step 3.");
+  }
+%}
+
+###
+
+### ── Step 3: Inspect token claims via UserInfo endpoint ──────────
+# Verify that Keycloak attached our custom claims:
+#   tenant_id, user_id, roles — mapped by realm protocol mappers.
+# @name kcUserInfo
+GET {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/userinfo
+Authorization: Bearer {{kc_access_token}}
+
+> {%
+  client.test("UserInfo contains required custom claims", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.tenant_id, "Missing tenant_id claim — check protocol mapper");
+    client.assert(response.body.user_id,   "Missing user_id claim — check protocol mapper");
+  });
+
+  if (response.body) {
+    client.log("✓ Claims: tenant_id=" + response.body.tenant_id
+      + " user_id=" + response.body.user_id
+      + " roles=" + JSON.stringify(response.body.roles));
+  }
+%}
+
+###
+
+### ── Step 4: Gateway validates RS256 token → create a case ───────
+# The gateway's DualTokenAuthenticationFilter:
+#   1. Reads Authorization header.
+#   2. Detects alg=RS256 from JWT header.
+#   3. Validates with Keycloak JWKS (no round-trip to Keycloak for each request,
+#      Spring caches the public key).
+#   4. Extracts user_id, tenant_id, roles, permissions from claims.
+#   5. Strips Authorization header.
+#   6. Injects X-User-ID, X-Tenant-ID, X-Username, X-Roles, X-Permissions.
+#   7. Forwards to case-service.
+# case-service's HeaderAuthenticationFilter reads those headers → SecurityContext.
+# @name e2eCreateCase
+POST {{apiGateway}}/api/cases
+Content-Type: application/json
+Authorization: Bearer {{kc_access_token}}
+X-Tenant-ID: {{tenantId}}
+
+{
+  "title": "E2E OAuth2 Test Case",
+  "description": "Created via Keycloak RS256 token through gateway",
+  "caseType": "CIVIL",
+  "clientId": "00000000-0000-0000-0000-000000000099"
+}
+
+> {%
+  client.test("Case created via Keycloak RS256 → Gateway → case-service", function () {
+    client.assert(response.status === 201,
+      "Expected 201 Created, got " + response.status
+      + ". If 401: check Keycloak is running and token claims include tenant_id/user_id."
+      + " If 403: check that the admin user has CASE_CREATE permission in Keycloak."
+      + (response.body ? " Body: " + JSON.stringify(response.body) : " (empty body)"));
+  });
+
+  if (response.body && response.body.data && response.body.data.id) {
+    client.global.set("case_id", response.body.data.id);
+    client.log("✓ E2E Case created: " + response.body.data.id + " — full OAuth2 + gateway chain is working!");
+  } else {
+    client.log("⚠ case_id not saved — check response above.");
+  }
+%}
+
+###
+
+### ── Step 5: Read the case back (verify SecurityContext populated) ─
+# @name e2eGetCase
+GET {{apiGateway}}/api/cases/{{case_id}}
+Authorization: Bearer {{kc_access_token}}
+X-Tenant-ID: {{tenantId}}
+
+> {%
+  client.test("Case readable via Keycloak token", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.data !== null, "response.body.data is null");
+    client.assert(response.body.data.id === client.global.get("case_id"), "ID mismatch");
+    client.assert(response.body.data.title === "E2E OAuth2 Test Case", "Title mismatch");
+  });
+  client.log("✓ Read-back confirmed — gateway header injection is correct.");
+%}
+
+###
+
+### ── Step 6: Refresh Keycloak token ──────────────────────────────
+# Verifies refresh_token flow. New access_token is saved.
+# @name kcRefresh
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+&client_id={{keycloakClientId}}
+&client_secret={{keycloakClientSecret}}
+&refresh_token={{kc_refresh_token}}
+
+> {%
+  client.test("Token refresh returns new access_token", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.access_token, "Missing access_token");
+  });
+  if (response.body && response.body.access_token) {
+    client.global.set("kc_access_token",  response.body.access_token);
+    client.global.set("jwt_token",        response.body.access_token);
+    client.global.set("kc_refresh_token", response.body.refresh_token);
+    client.log("✓ Token refreshed — JWT is now newer RS256 token.");
+  }
+%}
+
+###
+
+### ── Step 7: Use refreshed token to update the case ─────────────
+# @name e2eUpdateCaseWithRefreshedToken
+PATCH {{apiGateway}}/api/cases/{{case_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{kc_access_token}}
+X-Tenant-ID: {{tenantId}}
+
+{
+  "status": "IN_PROGRESS"
+}
+
+> {%
+  client.test("Status update with refreshed token (200)", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+  client.test("Status is IN_PROGRESS", function () {
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.data !== null, "response.body.data is null");
+    client.assert(response.body.data.status === "IN_PROGRESS",
+      "Expected IN_PROGRESS, got " + (response.body.data ? response.body.data.status : "null"));
+  });
+  client.log("✓ Refreshed token accepted by gateway — flows correctly to case-service.");
+%}
+
+###
+
+### ── Step 8: Logout user (blacklist + Keycloak session revoke) ───
+# This:
+#   - Calls user-service /api/auth/logout
+#   - Adds token to Redis blacklist (user-service)
+#   - Revokes Keycloak refresh_token session
+# @name e2eLogout
+POST {{userService}}/api/auth/logout
+Authorization: Bearer {{kc_access_token}}
+X-Tenant-ID: {{tenantId}}
+
+> {%
+  client.test("Logout succeeded", function () {
+    client.assert(response.status === 200 || response.status === 204,
+      "Expected 200 or 204, got " + response.status +
+      (response.body ? " — " + JSON.stringify(response.body) : ""));
+  });
+  client.log("✓ Logged out — token blacklisted in Redis.");
+%}
+
+###
+
+### ── Step 9: After logout — gateway should reject (401) ──────────
+# Redis-blacklisted token should be rejected by user-service's
+# TokenBlacklistFilter for user-service endpoints.
+# For case-service: the gateway validates on JWKS level (token still
+# cryptographically valid until expiry — short-lived by design).
+# @name e2eAfterLogout
+GET {{userService}}/api/users
+Authorization: Bearer {{kc_access_token}}
+X-Tenant-ID: {{tenantId}}
+
+> {%
+  client.test("Blacklisted token rejected at user-service (401)", function () {
+    client.assert(response.status === 401,
+      "Expected 401 (blacklisted), got " + response.status);
+  });
+  client.log("✓ Redis blacklist is effective — full oauth2 logout cycle validated.");
+%}
+
+###
+
+### ── Step 10: Keycloak Direct Logout (revoke refresh token) ──────
+# Belt-and-suspenders: also revoke on Keycloak side.
+# Old access_token already expired or blacklisted — this invalidates sessions.
+# @name kcLogout
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/logout
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{keycloakClientId}}
+&client_secret={{keycloakClientSecret}}
+&refresh_token={{kc_refresh_token}}
+
+> {%
+  client.test("Keycloak refresh_token revoked (204)", function () {
+    client.assert(response.status === 204, "Expected 204, got " + response.status);
+  });
+  client.global.set("kc_refresh_token", "");
+  client.log("✓ Keycloak session revoked. Full E2E OAuth2 cycle complete.");
+%}
+
+###
+
+### ─────────────────────────────────────────────────────────────────
+### BONUS: Test with Lawyer token (narrower permissions)
+### ─────────────────────────────────────────────────────────────────
+
+### ── Lawyer login via Keycloak ────────────────────────────────────
+# @name kcLoginLawyer
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password
+&client_id={{keycloakClientId}}
+&client_secret={{keycloakClientSecret}}
+&username={{lawyerEmail}}
+&password={{lawyerPassword}}
+&scope=openid profile email
+
+> {%
+  client.test("Lawyer Keycloak login OK", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.access_token, "Missing access_token");
+  });
+  if (response.body && response.body.access_token) {
+    client.global.set("lawyer_token", response.body.access_token);
+    client.log("✓ Lawyer token saved.");
+  }
+%}
+
+###
+
+### ── Lawyer creates a case (should succeed — LAWYER has CASE_CREATE) ─
+POST {{apiGateway}}/api/cases
+Content-Type: application/json
+Authorization: Bearer {{lawyer_token}}
+X-Tenant-ID: {{tenantId}}
+
+{
+  "title": "Lawyer E2E Test Case",
+  "description": "Created by LAWYER role via Keycloak",
+  "caseType": "CRIMINAL",
+  "clientId": "00000000-0000-0000-0000-000000000099"
+}
+
+> {%
+  client.test("Lawyer can create case (201)", function () {
+    client.assert(response.status === 201,
+      "Expected 201, got " + response.status +
+      (response.body ? " — " + JSON.stringify(response.body) : " (empty body)"));
+  });
+  client.log("✓ Lawyer role permits CASE_CREATE.");
+%}
+
+###
