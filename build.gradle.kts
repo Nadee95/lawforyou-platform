@@ -8,7 +8,7 @@ plugins {
 
 val springCloudVersion = "2024.0.1"
 val nadeexCommonVersion    = "0.1.0"
-val nadeexExceptionVersion = "0.2.0"
+val nadeexExceptionVersion = "0.3.0"
 val nadeexLoggingVersion   = "0.1.0"
 val nadeexSecurityVersion = "0.3.1"
 
