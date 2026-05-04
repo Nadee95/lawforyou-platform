@@ -1,12 +1,26 @@
-### Document Service — HTTP smoke tests
-### Requires: infrastructure running, user-service running (to get JWT token)
-### Set jwt_token in http-client.env.json after login
+# ============================================================
+# 04 — DOCUMENT SERVICE (via API Gateway)
+#
+# ⚠️  PHASE 5 NOTE: document-service uses header-based internal auth.
+# ALL requests MUST go through the API Gateway (port 8080).
+# Direct calls to localhost:8083 will return 401.
+#
+# WORKFLOW:
+#   1. Run "Login via Gateway" in 01_auth.http → {{jwt_token}}
+#   2. Run createCase in 03_cases.http → {{case_id}}
+#   3. Run upload below → {{document_id}}
+#
+# MinIO browser (local dev): http://localhost:9001
+#   user: minioadmin / minioadmin
+# ============================================================
 
-### ── Upload Document ──────────────────────────────────────────
-POST http://localhost:8083/api/v1/documents
+### ── Upload Document ────────────────────────────────────────────
+# @name uploadDocument
+# Sends a real PDF file — ensure http/sample-contract.pdf exists.
+POST {{apiGateway}}/api/v1/documents
 Content-Type: multipart/form-data; boundary=boundary
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
 --boundary
 Content-Disposition: form-data; name="file"; filename="contract.pdf"
@@ -24,31 +38,126 @@ Content-Type: application/json
 }
 --boundary--
 
-### ── List Documents for a Case ──────────────────────────────
-GET http://localhost:8083/api/v1/documents/case/{{case_id}}?page=0&size=10
+> {%
+  client.test("Document uploaded (201)", function () {
+    client.assert(response.status === 201,
+      "Expected 201, got " + response.status +
+      (response.body ? " — " + JSON.stringify(response.body) : " (empty body)"));
+  });
+  if (response.body && response.body.data && response.body.data.id) {
+    client.global.set("document_id", response.body.data.id);
+    client.log("✓ document_id saved: " + response.body.data.id);
+  } else {
+    client.log("⚠ document_id not saved — check response above.");
+  }
+%}
+
+###
+
+### ── List Documents for a Case ──────────────────────────────────
+GET {{apiGateway}}/api/v1/documents/case/{{case_id}}?page=0&size=10
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
-### ── Get Document Metadata ───────────────────────────────────
-GET http://localhost:8083/api/v1/documents/{{document_id}}
+> {%
+  client.test("List documents returns 200", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+  client.test("Response has paginated content", function () {
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(Array.isArray(response.body.content), "Expected paginated content array");
+    client.assert(response.body.totalElements >= 1, "Expected at least 1 document");
+  });
+%}
+
+###
+
+### ── Get Document Metadata ───────────────────────────────────────
+GET {{apiGateway}}/api/v1/documents/{{document_id}}
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
-### ── Download Latest Version ────────────────────────────────
-GET http://localhost:8083/api/v1/documents/{{document_id}}/download
+> {%
+  client.test("Get document metadata returns 200", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+  client.test("Document ID matches", function () {
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.data !== null, "response.body.data is null");
+    client.assert(response.body.data.id === client.global.get("document_id"), "ID mismatch");
+  });
+%}
+
+###
+
+### ── Download Latest Version ─────────────────────────────────────
+GET {{apiGateway}}/api/v1/documents/{{document_id}}/download
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
-### ── Download Specific Version ──────────────────────────────
-GET http://localhost:8083/api/v1/documents/{{document_id}}/versions/1/download
+> {%
+  client.test("Download returns 200", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+%}
+
+###
+
+### ── Download Specific Version ───────────────────────────────────
+GET {{apiGateway}}/api/v1/documents/{{document_id}}/versions/1/download
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
-### ── Delete Document ─────────────────────────────────────────
-DELETE http://localhost:8083/api/v1/documents/{{document_id}}
+> {%
+  client.test("Version download returns 200", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+%}
+
+###
+
+### ── Delete Document ─────────────────────────────────────────────
+DELETE {{apiGateway}}/api/v1/documents/{{document_id}}
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
-### ── Health Check ───────────────────────────────────────────
-GET http://localhost:8083/actuator/health
+> {%
+  client.test("Document deleted (204)", function () {
+    client.assert(response.status === 204, "Expected 204, got " + response.status);
+  });
+%}
 
+###
+
+### ── Verify Deleted Document Returns 404 ────────────────────────
+GET {{apiGateway}}/api/v1/documents/{{document_id}}
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: {{tenantId}}
+
+> {%
+  client.test("Deleted document returns 404", function () {
+    client.assert(response.status === 404, "Expected 404, got " + response.status);
+  });
+%}
+
+###
+
+### ── Unauthenticated upload (expect 401 from Gateway) ───────────
+POST {{apiGateway}}/api/v1/documents
+Content-Type: multipart/form-data; boundary=boundary
+X-Tenant-ID: {{tenantId}}
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="test.pdf"
+Content-Type: application/pdf
+
+test content
+--boundary--
+
+> {%
+  client.test("Unauthenticated upload rejected with 401", function () {
+    client.assert(response.status === 401, "Expected 401, got " + response.status);
+  });
+%}
+
+###

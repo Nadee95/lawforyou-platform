@@ -90,7 +90,7 @@ class AuthControllerTest {
                 Set.of("LAWYER"), Set.of("CASE_READ", "CASE_CREATE"),
                 TENANT_ID, null, null, null, null);
 
-        var success = new AuthResult.Success("jwt-token-here", 86400L, userDto);
+        var success = new AuthResult.Success("jwt-token-here", null, 86400L, userDto);
         when(userService.authenticate(any(), any())).thenReturn(success);
 
         mockMvc.perform(post("/api/auth/login")

@@ -2,6 +2,10 @@
 # 00 — HEALTH CHECKS
 # Run all (Ctrl+Shift+Click every ▶) or one at a time.
 # Select environment "dev" in the top-right dropdown first.
+#
+# NOTE (Phase 5): case-service and document-service use header-
+# based internal auth — they should only be accessed via the
+# API Gateway in production. Health endpoints are public.
 # ============================================================
 
 # ── Application Services ────────────────────────────────────
@@ -38,6 +42,23 @@ GET {{userService}}/actuator/info
 
 ### User Service — Prometheus metrics (scraped by Prometheus every 15s)
 GET {{userService}}/actuator/prometheus
+
+###
+
+### Case Service — health (direct; health endpoint is public)
+GET {{caseService}}/actuator/health
+
+###
+
+### Case Service — health (via Gateway)
+GET {{apiGateway}}/actuator/health
+
+###
+
+### Document Service — health (direct; health endpoint is public)
+GET {{documentService}}/actuator/health
+
+###
 
 ###
 

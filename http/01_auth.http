@@ -5,30 +5,35 @@
 #   admin@lawforyou.dev  / Admin@12345   → ADMIN  role (all permissions)
 #   lawyer@lawforyou.dev / Lawyer@12345  → LAWYER role (CASE_* + DOCUMENT_* + USER_READ)
 #
+# Phase 4+: Users registered via /api/auth/register get:
+#   - A PostgreSQL record (primary truth)
+#   - A Keycloak identity (RS256 tokens with tenant_id, user_id, role claims)
+#   - Login → returns Keycloak RS256 access_token + refresh_token
+#
 # The "Login as Admin" request saves the JWT to {{jwt_token}} so
 # all subsequent requests in 02_users.http / 03_cases.http work
 # without copy-pasting.
 #
-# "Register" is still available if you want to create an ad-hoc CLIENT user.
+# "Register" creates user in both PostgreSQL AND Keycloak (when KEYCLOAK_ENABLED=true).
 # ============================================================
 
-### Register — create a new CLIENT user in the tenant (optional)
+### Register — create a new CLIENT user (PostgreSQL + Keycloak identity)
 # @name register
 POST {{userService}}/api/auth/register
 X-Tenant-ID: {{tenantId}}
 Content-Type: application/json
 
 {
-  "username":  "admin",
-  "email":     "{{adminEmail}}",
-  "password":  "{{adminPassword}}",
-  "firstName": "Platform",
-  "lastName":  "Admin"
+  "username":  "newclient",
+  "email":     "newclient@acme.com",
+  "password":  "Client@12345",
+  "firstName": "New",
+  "lastName":  "Client"
 }
 
 ###
 
-### Login as Admin — captures JWT with ALL permissions
+### Login as Admin — captures JWT (Phase 4: RS256 Keycloak token if admin has keycloakId)
 # @name loginAdmin
 POST {{userService}}/api/auth/login
 X-Tenant-ID: {{tenantId}}
@@ -44,21 +49,28 @@ Content-Type: application/json
     client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
   });
 
-  var token = response.body.data && response.body.data.accessToken;
+  var token = response.body && response.body.data && response.body.data.accessToken;
   client.test("Token present in response", function () {
-    client.assert(!!token, "data.accessToken was missing from response");
+    client.assert(!!token, "data.accessToken was missing from response"
+      + (response.body ? "" : " (body is null — response may not be JSON)"));
   });
 
   if (token) {
     client.global.set("jwt_token", token);
     client.log("✓ jwt_token saved (ADMIN) — all case/user requests are ready.");
+    // Save refresh token if present (Keycloak Phase 4+)
+    var refreshToken = response.body.data && response.body.data.refreshToken;
+    if (refreshToken) {
+      client.global.set("kc_refresh_token", refreshToken);
+      client.log("✓ kc_refresh_token saved — use Keycloak refresh endpoint to extend session.");
+    }
   }
 %}
 
 ###
 
-### Login as Admin — captures JWT with ALL permissions (via API Gateway)
-# @name loginAdmin
+### Login as Admin — via API Gateway (tests DualTokenAuthenticationFilter Phase 3)
+# @name loginAdminViaGateway
 POST {{apiGateway}}/api/auth/login
 X-Tenant-ID: {{tenantId}}
 Content-Type: application/json
@@ -73,14 +85,15 @@ Content-Type: application/json
         client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
     });
 
-    var token = response.body.data && response.body.data.accessToken;
+    var token = response.body && response.body.data && response.body.data.accessToken;
     client.test("Token present in response", function () {
-        client.assert(!!token, "data.accessToken was missing from response");
+        client.assert(!!token, "data.accessToken was missing from response"
+          + (response.body ? "" : " (body is null)"));
     });
 
     if (token) {
         client.global.set("jwt_token", token);
-        client.log("✓ jwt_token saved (ADMIN) — all case/user requests are ready.");
+        client.log("✓ jwt_token saved (ADMIN via Gateway) — all case/user requests are ready.");
     }
 %}
 
@@ -102,10 +115,36 @@ Content-Type: application/json
     client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
   });
 
-  var token = response.body.data && response.body.data.accessToken;
+  var token = response.body && response.body.data && response.body.data.accessToken;
   if (token) {
     client.global.set("jwt_token", token);
     client.log("✓ jwt_token saved (LAWYER) — CASE_CREATE / CASE_ASSIGN / DOCUMENT_* ready.");
+  }
+%}
+
+###
+
+### Logout — blacklists token and revokes Keycloak sessions (Phase 4+)
+# @name logout
+POST {{userService}}/api/auth/logout
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+###
+
+### Refresh Keycloak Token — exchange refresh_token for new access_token (Phase 4+)
+# Uses Keycloak token endpoint directly
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token&client_id={{keycloakClientId}}&client_secret={{keycloakClientSecret}}&refresh_token={{kc_refresh_token}}
+
+> {%
+  var newToken = response.body && response.body.access_token;
+  if (newToken) {
+    client.global.set("jwt_token", newToken);
+    client.global.set("kc_refresh_token", response.body.refresh_token);
+    client.log("✓ Tokens refreshed via Keycloak.");
   }
 %}
 

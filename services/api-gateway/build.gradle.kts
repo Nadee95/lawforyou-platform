@@ -2,10 +2,13 @@ plugins {
     jacoco
 }
 
+val nadeexCommonVersion:    String by rootProject.extra
+val nadeexExceptionVersion: String by rootProject.extra
+
 dependencies {
     // Nadeex shared libraries
-    implementation("com.nadeex.spring:common:0.1.0")
-    implementation("com.nadeex.spring:exception:0.2.0")
+    implementation("com.nadeex.spring:common:$nadeexCommonVersion")
+    implementation("com.nadeex.spring:exception:$nadeexExceptionVersion")
 
     // Spring Cloud Gateway (reactive — do NOT add spring-boot-starter-web)
     implementation("org.springframework.cloud:spring-cloud-starter-gateway")
@@ -18,6 +21,9 @@ dependencies {
 
     // Reactive security
     implementation("org.springframework.boot:spring-boot-starter-security")
+
+    // OAuth2 resource server — NimbusReactiveJwtDecoder for Keycloak RS256 JWKS validation
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 
     // Redis — rate limiting + token blacklist
     implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")

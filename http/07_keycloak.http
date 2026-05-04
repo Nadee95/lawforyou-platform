@@ -1,0 +1,190 @@
+### ─────────────────────────────────────────────────────────────────────────────
+### 07 — Keycloak / OAuth2 flows
+###
+### Prerequisites:
+###   1. docker-compose -f infrastructure/docker-compose/docker-compose.infra.yml up -d
+###   2. Wait ~90 s for Keycloak to finish DB migration and realm import.
+###   3. Admin UI: http://localhost:8180  (admin / admin)
+###      Realm:    lawforyou
+###
+### Credentials seeded by realm-export.json:
+###   admin@lawforyou.dev  / Admin@12345   → ADMIN  role
+###   lawyer@lawforyou.dev / Lawyer@12345  → LAWYER role
+###   client@lawforyou.dev / Client@12345  → CLIENT role
+### ─────────────────────────────────────────────────────────────────────────────
+
+### ── 1. Health — confirm Keycloak is up ──────────────────────────────────────
+# Health is on the MANAGEMENT interface (port 9180 externally → 9000 internally).
+# The main port (8180) does NOT serve /health — use OIDC discovery for that.
+GET {{keycloakMgmt}}/health/ready
+
+> {%
+    client.test("Keycloak is healthy", function() {
+        client.assert(response.status === 200, "Expected 200 OK");
+        client.assert(response.body.status === "UP", "Keycloak status should be UP");
+    });
+%}
+
+###
+
+### ── 2. OIDC Discovery — inspect realm endpoints ─────────────────────────────
+# Shows: token_endpoint, jwks_uri, authorization_endpoint, etc.
+GET {{keycloakBase}}/realms/{{keycloakRealm}}/.well-known/openid-configuration
+
+###
+
+### ── 3. JWKS — public keys used to verify RS256 tokens ──────────────────────
+# API Gateway will fetch this endpoint automatically via spring.security.oauth2
+# .resourceserver.jwt.jwks-uri in Phase 3.
+GET {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/certs
+
+###
+
+### ── 4. Login as admin (Resource Owner Password Credentials — dev only) ─────
+# Direct access grants are enabled for phase-2 login proxy.
+# In production / Phase 3+ use Authorization Code + PKCE from the frontend.
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password
+&client_id={{keycloakClientId}}
+&client_secret={{keycloakClientSecret}}
+&username=admin@lawforyou.dev
+&password=Admin@12345
+&scope=openid profile email
+
+> {%
+    client.test("Admin login returns access_token", function() {
+        client.assert(response.status === 200, "Expected 200 OK");
+        client.assert(response.body.access_token, "Missing access_token");
+        client.assert(response.body.token_type === "Bearer", "Wrong token_type");
+    });
+    // Save tokens for use in subsequent requests
+    client.global.set("kc_access_token",  response.body.access_token);
+    client.global.set("kc_refresh_token", response.body.refresh_token);
+%}
+
+###
+
+### ── 5. Login as lawyer ───────────────────────────────────────────────────────
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password
+&client_id={{keycloakClientId}}
+&client_secret={{keycloakClientSecret}}
+&username=lawyer@lawforyou.dev
+&password=Lawyer@12345
+&scope=openid profile email
+
+> {%
+    client.test("Lawyer login returns access_token", function() {
+        client.assert(response.status === 200, "Expected 200 OK");
+        client.assert(response.body.access_token, "Missing access_token");
+    });
+    client.global.set("kc_access_token",  response.body.access_token);
+    client.global.set("kc_refresh_token", response.body.refresh_token);
+%}
+
+###
+
+### ── 6. Inspect token claims (UserInfo endpoint) ────────────────────────────
+# Returns: sub, email, preferred_username, tenant_id, user_id, roles, etc.
+# Verify that tenant_id and roles claims are present (mapped by realm protocol mappers).
+GET {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/userinfo
+Authorization: Bearer {{kc_access_token}}
+
+> {%
+    client.test("UserInfo contains tenant_id claim", function() {
+        client.assert(response.status === 200, "Expected 200 OK");
+        client.assert(response.body.tenant_id, "Missing tenant_id claim — check protocol mapper");
+        client.assert(response.body.user_id, "Missing user_id claim — check protocol mapper");
+    });
+%}
+
+###
+
+### ── 7. Introspect token (server-side validation) ───────────────────────────
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/token/introspect
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic bGF3Zm9yeW91LWJhY2tlbmQ6bGF3Zm9yeW91LWJhY2tlbmQtc2VjcmV0
+
+token={{kc_access_token}}
+
+> {%
+    client.test("Token is active", function() {
+        client.assert(response.status === 200, "Expected 200 OK");
+        client.assert(response.body.active === true, "Token should be active");
+    });
+%}
+
+###
+
+### ── 8. Refresh access token ─────────────────────────────────────────────────
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+&client_id={{keycloakClientId}}
+&client_secret={{keycloakClientSecret}}
+&refresh_token={{kc_refresh_token}}
+
+> {%
+    client.test("Token refresh returns new access_token", function() {
+        client.assert(response.status === 200, "Expected 200 OK");
+        client.assert(response.body.access_token, "Missing access_token");
+    });
+    client.global.set("kc_access_token", response.body.access_token);
+%}
+
+###
+
+### ── 9. Logout (revoke refresh token) ───────────────────────────────────────
+# Revokes the refresh token — access token remains valid until TTL expires.
+# (in Phase 3, the API Gateway's DualTokenValidationFilter also adds the
+#  access token to Redis blacklist with remaining TTL)
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/logout
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{keycloakClientId}}
+&client_secret={{keycloakClientSecret}}
+&refresh_token={{kc_refresh_token}}
+
+> {%
+    client.test("Logout returns 204 No Content", function() {
+        client.assert(response.status === 204, "Expected 204 No Content");
+    });
+    client.global.set("kc_refresh_token", "");
+%}
+
+###
+
+### ── 10. Service Account token (for user-service Admin API calls) ───────────
+# The service account of lawforyou-backend is used to call the Keycloak Admin REST API.
+# e.g.: create user on /api/auth/register, revoke sessions on /api/auth/logout
+POST {{keycloakBase}}/realms/{{keycloakRealm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id={{keycloakClientId}}
+&client_secret={{keycloakClientSecret}}
+
+> {%
+    client.test("Service account token returned", function() {
+        client.assert(response.status === 200, "Expected 200 OK");
+        client.assert(response.body.access_token, "Missing access_token");
+    });
+    client.global.set("kc_service_token", response.body.access_token);
+%}
+
+###
+
+### ── 11. Admin REST API — list users in realm ───────────────────────────────
+# Uses the service account token from request 10.
+# Requires the service account to have the "realm-management > manage-users" role
+# (assign via Keycloak Admin UI: Clients → lawforyou-backend → Service account roles)
+GET {{keycloakBase}}/admin/realms/{{keycloakRealm}}/users
+Authorization: Bearer {{kc_service_token}}
+
+###
+

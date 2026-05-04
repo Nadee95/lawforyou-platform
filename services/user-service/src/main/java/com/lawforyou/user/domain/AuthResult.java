@@ -24,12 +24,14 @@ public sealed interface AuthResult
     /**
      * Authentication succeeded.
      *
-     * @param token     Signed JWT access token.
-     * @param expiresIn Token lifetime in seconds.
-     * @param user      Authenticated user's read model.
+     * @param token        Signed JWT access token (Keycloak RS256 or legacy HS256).
+     * @param refreshToken Keycloak refresh token, or {@code null} for legacy HS256 tokens.
+     * @param expiresIn    Token lifetime in seconds.
+     * @param user         Authenticated user's read model.
      */
     record Success(
             String  token,
+            String  refreshToken,
             long    expiresIn,
             UserDto user
     ) implements AuthResult {}

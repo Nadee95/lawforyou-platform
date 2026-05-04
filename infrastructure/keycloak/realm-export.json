@@ -1,0 +1,279 @@
+{
+  "realm": "lawforyou",
+  "enabled": true,
+  "displayName": "LawForYou Platform",
+  "displayNameHtml": "<strong>LawForYou</strong> Platform",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 10,
+
+  "accessTokenLifespan": 3600,
+  "refreshTokenMaxReuse": 0,
+  "revokeRefreshToken": false,
+
+
+  "roles": {
+    "realm": [
+      {
+        "name": "ADMIN",
+        "description": "Platform administrator with full access to all tenants",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "LAWYER",
+        "description": "Legal professional — can manage cases and documents",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "CLIENT",
+        "description": "Client of legal services — read-only access to own cases",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "STAFF",
+        "description": "Support staff — limited administrative access",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+
+  "groups": [
+    {
+      "name": "tenant-00000000-0000-0000-0000-000000000001",
+      "path": "/tenant-00000000-0000-0000-0000-000000000001",
+      "attributes": {
+        "tenant_id": ["00000000-0000-0000-0000-000000000001"]
+      },
+      "realmRoles": [],
+      "clientRoles": {},
+      "subGroups": []
+    }
+  ],
+
+  "clients": [
+    {
+      "clientId": "lawforyou-backend",
+      "name": "LawForYou Backend Services",
+      "description": "Confidential client used by API Gateway and user-service. Supports direct access grants (Phase 2 login proxy) and service accounts (Admin API calls).",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "lawforyou-backend-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "fullScopeAllowed": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "http://localhost:8080/*",
+        "http://localhost:8180/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ],
+      "attributes": {
+        "access.token.lifespan": "3600",
+        "use.refresh.tokens": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "tenant-id-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenant_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "user-id-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "user_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "user_id",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "realm-roles-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "userinfo.token.claim": "false"
+          }
+        },
+        {
+          "name": "username-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "permissions-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "permissions",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "permissions",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "aggregate.attrs": "false",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+
+  "clientScopeMappings": {
+    "realm-management": [
+      {
+        "client": "lawforyou-backend",
+        "roles": ["manage-users", "view-users", "query-users", "query-groups", "manage-realm"]
+      }
+    ]
+  },
+
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@lawforyou.dev",
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "tenant_id": ["00000000-0000-0000-0000-000000000001"],
+        "user_id":   ["00000000-0000-0000-0000-000000000010"],
+        "permissions": [
+          "CASE_CREATE", "CASE_READ", "CASE_UPDATE", "CASE_ASSIGN", "CASE_DELETE",
+          "USER_READ", "USER_CREATE", "USER_UPDATE", "USER_DELETE",
+          "DOCUMENT_READ", "DOCUMENT_UPLOAD", "DOCUMENT_DELETE",
+          "NOTIFICATION_READ"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin@12345",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ADMIN"],
+      "groups": ["/tenant-00000000-0000-0000-0000-000000000001"]
+    },
+    {
+      "username": "lawyer",
+      "email": "lawyer@lawforyou.dev",
+      "firstName": "Dev",
+      "lastName": "Lawyer",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "tenant_id": ["00000000-0000-0000-0000-000000000001"],
+        "user_id":   ["00000000-0000-0000-0000-000000000011"],
+        "permissions": [
+          "CASE_READ", "CASE_UPDATE", "CASE_ASSIGN",
+          "DOCUMENT_READ", "DOCUMENT_UPLOAD",
+          "NOTIFICATION_READ"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Lawyer@12345",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["LAWYER"],
+      "groups": ["/tenant-00000000-0000-0000-0000-000000000001"]
+    },
+    {
+      "username": "client-user",
+      "email": "client@lawforyou.dev",
+      "firstName": "Dev",
+      "lastName": "Client",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "tenant_id": ["00000000-0000-0000-0000-000000000001"],
+        "user_id":   ["00000000-0000-0000-0000-000000000012"],
+        "permissions": [
+          "CASE_READ",
+          "DOCUMENT_READ",
+          "NOTIFICATION_READ"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Client@12345",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["CLIENT"],
+      "groups": ["/tenant-00000000-0000-0000-0000-000000000001"]
+    },
+    {
+      "username": "service-account-lawforyou-backend",
+      "email": "service-account-lawforyou-backend@placeholder.org",
+      "enabled": true,
+      "serviceAccountClientId": "lawforyou-backend",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users",
+          "query-groups",
+          "manage-realm"
+        ]
+      }
+    }
+  ]
+}
+

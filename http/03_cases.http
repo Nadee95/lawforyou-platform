@@ -1,12 +1,30 @@
-### Case Service — HTTP smoke tests
-### Requires: infrastructure running, user-service running (to get JWT token)
-### Set jwt_token in http-client.env.json after login
+# ============================================================
+# 03 — CASE SERVICE (via API Gateway)
+#
+# ⚠️  PHASE 5 NOTE: case-service uses header-based internal auth.
+# ALL requests MUST go through the API Gateway (port 8080).
+# Direct calls to localhost:8082 will return 401 because
+# the gateway is the only entity that injects X-User-ID /
+# X-Tenant-ID / X-Roles / X-Permissions headers.
+#
+# WORKFLOW:
+#   1. Run "Login as Admin via Gateway" in 01_auth.http first.
+#      → This saves {{jwt_token}} (Keycloak RS256 access_token).
+#   2. Run the requests below — they all go via the gateway.
+#      The gateway validates the token → injects identity headers
+#      → case-service builds SecurityContext from those headers.
+#
+# OAUTH2 ALTERNATIVE (no user-service):
+#   Run 07_keycloak.http #4 to get {{kc_access_token}} directly
+#   from Keycloak, then use that as {{jwt_token}}.
+# ============================================================
 
 ### ── Create Case ─────────────────────────────────────────────────
-POST http://localhost:8082/api/cases
+# @name createCase
+POST {{apiGateway}}/api/cases
 Content-Type: application/json
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
 {
   "title": "Smith vs. Jones",
@@ -15,52 +33,167 @@ X-Tenant-ID: 00000000-0000-0000-0000-000000000001
   "clientId": "00000000-0000-0000-0000-000000000099"
 }
 
-### ── List Cases ──────────────────────────────────────────────────
-GET http://localhost:8082/api/cases?page=0&size=10
+> {%
+  client.test("Case created (201)", function () {
+    client.assert(response.status === 201,
+      "Expected 201, got " + response.status +
+      (response.body ? " — " + JSON.stringify(response.body) : " (empty body)"));
+  });
+  if (response.body && response.body.data && response.body.data.id) {
+    client.global.set("case_id", response.body.data.id);
+    client.log("✓ case_id saved: " + response.body.data.id);
+  } else {
+    client.log("⚠ case_id not saved — check response above.");
+  }
+%}
+
+###
+
+### ── List Cases (paginated) ────────────────────────────────────────
+GET {{apiGateway}}/api/cases?page=0&size=10
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
+
+> {%
+  client.test("List cases returns 200", function () {
+    client.assert(response.status === 200,
+      "Expected 200, got " + response.status +
+      (response.body ? "" : " (empty body — likely 401/gateway error)"));
+  });
+  client.test("Response has paginated content", function () {
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(Array.isArray(response.body.content), "Expected paginated content array");
+  });
+%}
+
+###
 
 ### ── List Cases filtered by status ──────────────────────────────
-GET http://localhost:8082/api/cases?status=OPEN
+GET {{apiGateway}}/api/cases?status=OPEN&page=0&size=10
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
-### ── Get Case by ID ─────────────────────────────────────────────
-GET http://localhost:8082/api/cases/{{case_id}}
+> {%
+  client.test("Filtered list returns 200", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+%}
+
+###
+
+### ── Get Case by ID ──────────────────────────────────────────────
+# Requires case_id to be set (run createCase first)
+GET {{apiGateway}}/api/cases/{{case_id}}
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
-### ── Update Case ────────────────────────────────────────────────
-PUT http://localhost:8082/api/cases/{{case_id}}
+> {%
+  client.test("Get case by ID returns 200", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+%}
+
+###
+
+### ── Update Case ─────────────────────────────────────────────────
+PUT {{apiGateway}}/api/cases/{{case_id}}
 Content-Type: application/json
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
 {
   "title": "Smith vs. Jones (Updated)",
-  "description": "Updated description"
+  "description": "Updated via HTTP smoke test"
 }
 
-### ── Assign Lawyer ──────────────────────────────────────────────
-PATCH http://localhost:8082/api/cases/{{case_id}}/assign
+> {%
+  client.test("Case updated (200)", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+  client.test("Title matches", function () {
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.data !== null, "response.body.data is null");
+    client.assert(response.body.data.title === "Smith vs. Jones (Updated)", "Title mismatch");
+  });
+%}
+
+###
+
+### ── Assign Lawyer ───────────────────────────────────────────────
+PATCH {{apiGateway}}/api/cases/{{case_id}}/assign
 Content-Type: application/json
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
 {
   "lawyerId": "00000000-0000-0000-0000-000000000002"
 }
 
-### ── Change Status ──────────────────────────────────────────────
-PATCH http://localhost:8082/api/cases/{{case_id}}/status
+> {%
+  client.test("Lawyer assigned (200)", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+%}
+
+###
+
+### ── Change Status → IN_PROGRESS ────────────────────────────────
+PATCH {{apiGateway}}/api/cases/{{case_id}}/status
 Content-Type: application/json
 Authorization: Bearer {{jwt_token}}
-X-Tenant-ID: 00000000-0000-0000-0000-000000000001
+X-Tenant-ID: {{tenantId}}
 
 {
   "status": "IN_PROGRESS"
 }
 
-### ── Health Check ───────────────────────────────────────────────
-GET http://localhost:8082/actuator/health
+> {%
+  client.test("Status changed to IN_PROGRESS (200)", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+  client.test("Status value is IN_PROGRESS", function () {
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.data !== null, "response.body.data is null");
+    client.assert(response.body.data.status === "IN_PROGRESS",
+      "Expected IN_PROGRESS, got " + (response.body.data ? response.body.data.status : "null"));
+  });
+%}
 
+###
+
+### ── Change Status → CLOSED ──────────────────────────────────────
+PATCH {{apiGateway}}/api/cases/{{case_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{jwt_token}}
+X-Tenant-ID: {{tenantId}}
+
+{
+  "status": "CLOSED"
+}
+
+> {%
+  client.test("Status changed to CLOSED (200)", function () {
+    client.assert(response.status === 200, "Expected 200, got " + response.status);
+  });
+  client.test("Status value is CLOSED", function () {
+    client.assert(response.body !== null, "response.body is null");
+    client.assert(response.body.data !== null, "response.body.data is null");
+    client.assert(response.body.data.status === "CLOSED",
+      "Expected CLOSED, got " + (response.body.data ? response.body.data.status : "null"));
+  });
+%}
+
+###
+
+### ── Unauthenticated request (expect 401 from Gateway) ──────────
+# Gateway rejects before it reaches case-service
+GET {{apiGateway}}/api/cases
+X-Tenant-ID: {{tenantId}}
+
+> {%
+  client.test("Unauthenticated request rejected with 401", function () {
+    client.assert(response.status === 401, "Expected 401, got " + response.status);
+  });
+%}
+
+###
