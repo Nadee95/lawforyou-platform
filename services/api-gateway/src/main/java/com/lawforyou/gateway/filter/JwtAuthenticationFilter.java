@@ -7,13 +7,18 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.UUID;
+
+/**
+ * @deprecated Replaced by {@link DualTokenAuthenticationFilter} in Phase 3.
+ *             Kept for reference only ? {@code @Component} removed so it is not registered.
+ *             Will be deleted in Phase 8 (legacy removal).
+ */
 @Slf4j
-@Component
+@Deprecated(since = "phase-3", forRemoval = true)
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     private static final String BEARER_PREFIX    = "Bearer ";

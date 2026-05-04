@@ -4,10 +4,10 @@ plugins {
 
 dependencies {
     // Nadeex shared libraries
-    implementation("com.nadeex.spring:common:0.1.0")
-    implementation("com.nadeex.spring:exception:0.2.0")
-    implementation("com.nadeex.spring:logging:0.1.0")
-    implementation("com.nadeex.spring:security:0.2.0")
+    implementation("com.nadeex.spring:common:${rootProject.extra["nadeexCommonVersion"]}")
+    implementation("com.nadeex.spring:exception:${rootProject.extra["nadeexExceptionVersion"]}")
+    implementation("com.nadeex.spring:logging:${rootProject.extra["nadeexLoggingVersion"]}")
+    implementation("com.nadeex.spring:security:${rootProject.extra["nadeexSecurityVersion"]}")
 
     // Web + Validation
     implementation("org.springframework.boot:spring-boot-starter-web")

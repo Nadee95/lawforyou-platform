@@ -3,4 +3,5 @@
 
 CREATE DATABASE user_db;
 CREATE DATABASE case_db;
+CREATE DATABASE keycloak_db;   -- Keycloak identity provider (Phase 2+)
 
