@@ -67,6 +67,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:kafka")
+    testImplementation("com.github.dasniko:testcontainers-keycloak:3.4.0")
 }
 
 tasks.named<Jar>("jar") {
