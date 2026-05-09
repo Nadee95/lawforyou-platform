@@ -1,39 +1,30 @@
-<#
-.SYNOPSIS
-    Quick health check for all LawForYou platform services.
-.EXAMPLE
-    .\health-check.ps1
-#>
+# health-check.ps1 - Quick health check for all LawForYou platform services.
+#
+# Usage:
+#   .\scripts\health-check.ps1
 $checks = @(
-    # ── Infrastructure UIs ──────────────────────────────────────────
-    @{ Name = "Prometheus";           Url = "http://localhost:9090/-/ready"              }
-    @{ Name = "Grafana";              Url = "http://localhost:3000/api/health"           }
-    @{ Name = "Jaeger UI";            Url = "http://localhost:16686/"                    }
-    @{ Name = "MinIO Console";        Url = "http://localhost:9091/minio/health/live"    }
-    @{ Name = "MailHog UI";           Url = "http://localhost:8025/"                     }
-
-    # ── Java services (Spring Actuator) ─────────────────────────────
-    @{ Name = "Config Server";        Url = "http://localhost:8888/actuator/health"      }
-    @{ Name = "Eureka Server";        Url = "http://localhost:8761/actuator/health"      }
-    @{ Name = "API Gateway";          Url = "http://localhost:8080/actuator/health"      }
-    @{ Name = "User Service";         Url = "http://localhost:8081/actuator/health"      }
-    @{ Name = "Case Service";         Url = "http://localhost:8082/actuator/health"      }
-    @{ Name = "Document Service";     Url = "http://localhost:8083/actuator/health"      }
-
-    # ── NestJS service ───────────────────────────────────────────────
-    @{ Name = "Communication Svc";    Url = "http://localhost:8084/health"               }
+    # -- Infrastructure UIs ---------------------------------------------------
+    @{ Name = "Prometheus";        Url = "http://localhost:9090/-/ready"           }
+    @{ Name = "Grafana";           Url = "http://localhost:3000/api/health"        }
+    @{ Name = "Jaeger UI";         Url = "http://localhost:16686/"                 }
+    @{ Name = "MinIO Console";     Url = "http://localhost:9001/minio/health/live" }
+    @{ Name = "MailHog UI";        Url = "http://localhost:8025/"                  }
+    # -- Java services (Spring Actuator) --------------------------------------
+    @{ Name = "Config Server";     Url = "http://localhost:8888/actuator/health"   }
+    @{ Name = "Eureka Server";     Url = "http://localhost:8761/actuator/health"   }
+    @{ Name = "API Gateway";       Url = "http://localhost:8080/actuator/health"   }
+    @{ Name = "User Service";      Url = "http://localhost:8081/actuator/health"   }
+    @{ Name = "Case Service";      Url = "http://localhost:8082/actuator/health"   }
+    @{ Name = "Document Service";  Url = "http://localhost:8083/actuator/health"   }
+    # -- NestJS service -------------------------------------------------------
+    @{ Name = "Communication Svc"; Url = "http://localhost:8084/health"            }
 )
 $dockerChecks = @(
-    @{ Name = "PostgreSQL";   Container = "lawforyou-postgres"   }
-    @{ Name = "Redis";        Container = "lawforyou-redis"      }
-    @{ Name = "ZooKeeper";    Container = "lawforyou-zookeeper"  }
-    @{ Name = "Kafka";        Container = "lawforyou-kafka"      }
-    @{ Name = "MongoDB";      Container = "lawforyou-mongodb"    }
-    @{ Name = "MinIO";        Container = "lawforyou-minio"      }
-    @{ Name = "MailHog";      Container = "lawforyou-mailhog"    }
-    @{ Name = "Prometheus";   Container = "lawforyou-prometheus" }
-    @{ Name = "Grafana";      Container = "lawforyou-grafana"    }
-    @{ Name = "Jaeger";       Container = "lawforyou-jaeger"     }
+    @{ Name = "PostgreSQL"; Container = "lawforyou-postgres"   }
+    @{ Name = "Redis";      Container = "lawforyou-redis"      }
+    @{ Name = "Kafka";      Container = "lawforyou-kafka"      }
+    @{ Name = "MongoDB";    Container = "lawforyou-mongodb"    }
+    @{ Name = "MinIO";      Container = "lawforyou-minio"      }
 )
 $pass  = 0
 $fail  = 0
@@ -57,7 +48,7 @@ Write-Host ""
 Write-Host "  HTTP Endpoints" -ForegroundColor DarkGray
 foreach ($c in $checks) {
     try {
-        $resp = Invoke-WebRequest -Uri $c.Url -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+        $resp   = Invoke-WebRequest -Uri $c.Url -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
         $ok     = $resp.StatusCode -lt 400
         $detail = "HTTP $($resp.StatusCode)"
         if ($c.Url -match "/actuator/health") {
@@ -74,9 +65,9 @@ Write-Host ""
 Write-Host "  Docker Containers" -ForegroundColor DarkGray
 foreach ($d in $dockerChecks) {
     try {
-        $state  = docker inspect --format '{{.State.Status}}' $d.Container 2>$null
+        $state  = docker inspect --format "{{.State.Status}}" $d.Container 2>$null
         $ok     = ($state -eq "running")
-        $health = docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' $d.Container 2>$null
+        $health = docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}" $d.Container 2>$null
         $detail = "state=$state  health=$health"
         if ($ok) { $pass++ } else { $fail++ }
         Write-Result $d.Name $ok $detail
@@ -93,9 +84,9 @@ if ($fail -eq 0) {
 } else {
     Write-Host "  $pass/$total passed, $fail failed." -ForegroundColor Yellow
 }
-Write-Host "  Eureka dashboard: http://localhost:8761" -ForegroundColor DarkGray
-Write-Host "  MailHog inbox:    http://localhost:8025" -ForegroundColor DarkGray
-Write-Host "  MinIO console:    http://localhost:9091  (minioadmin/minioadmin)" -ForegroundColor DarkGray
-Write-Host "  Grafana:          http://localhost:3000  (admin/admin)" -ForegroundColor DarkGray
-Write-Host "  Jaeger UI:        http://localhost:16686" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "  Eureka dashboard:  http://localhost:8761"              -ForegroundColor DarkGray
+Write-Host "  MinIO console:     http://localhost:9001  (minioadmin/minioadmin)" -ForegroundColor DarkGray
+Write-Host "  Grafana:           http://localhost:3000  (admin/admin)" -ForegroundColor DarkGray
+Write-Host "  Jaeger UI:         http://localhost:16686"             -ForegroundColor DarkGray
 Write-Host ""

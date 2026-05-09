@@ -1,0 +1,7 @@
+apiVersion: v2
+name: communication-service
+description: LawForYou Communication Service — NestJS, Kafka consumer, email/SMS
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+

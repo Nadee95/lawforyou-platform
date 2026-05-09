@@ -1,0 +1,42 @@
+activeSlot: blue
+
+blue:
+  image:
+    tag: "0.1.0"
+
+green:
+  image:
+    tag: "0.1.0"
+
+image:
+  repository: ghcr.io/nadee95/lawforyou/document-service
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: lawforyou-ghcr-pull-secret
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8083
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+secrets:
+  existingSecret: lawforyou-doc-secret
+
+env:
+  SPRING_PROFILES_ACTIVE: "docker"
+  JAVA_OPTS: "-Xms256m -Xmx512m"
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eureka-server:8761/eureka/"
+  EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+  SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "lawforyou-kafka:9092"
+
