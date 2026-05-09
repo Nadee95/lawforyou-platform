@@ -1,0 +1,7 @@
+apiVersion: v2
+name: api-gateway
+description: LawForYou API Gateway — Spring Cloud Gateway, JWT validation, rate limiting
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+

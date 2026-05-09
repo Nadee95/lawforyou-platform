@@ -1,0 +1,84 @@
+{{- $name := include "case-service.fullname" . -}}
+{{- range list "blue" "green" }}
+{{- $slot := . }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-{{ $slot }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "case-service.labels" $ | nindent 4 }}
+    slot: {{ $slot }}
+spec:
+  replicas: {{ if eq $slot $.Values.activeSlot }}{{ $.Values.replicaCount }}{{ else }}{{ if (hasKey $.Values "inactiveReplicaCount") }}{{ index $.Values "inactiveReplicaCount" }}{{ else }}{{ $.Values.replicaCount }}{{ end }}{{ end }}
+  selector:
+    matchLabels:
+      {{- include "case-service.selectorLabels" $ | nindent 6 }}
+      slot: {{ $slot }}
+  template:
+    metadata:
+      labels:
+        {{- include "case-service.selectorLabels" $ | nindent 8 }}
+        slot: {{ $slot }}
+    spec:
+      imagePullSecrets:
+        {{- toYaml $.Values.imagePullSecrets | nindent 8 }}
+      containers:
+        - name: case-service
+          image: "{{ $.Values.image.repository }}:{{ index $.Values $slot "image" "tag" }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8082
+              protocol: TCP
+          env:
+            {{- range $key, $val := $.Values.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.secrets.existingSecret }}
+                  key: POSTGRES_URL
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.secrets.existingSecret }}
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.secrets.existingSecret }}
+                  key: POSTGRES_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.secrets.existingSecret }}
+                  key: JWT_SECRET
+          startupProbe:
+            tcpSocket:
+              port: 8082
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 50
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+{{- end }}
+
+
+

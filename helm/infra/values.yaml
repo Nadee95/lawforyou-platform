@@ -1,0 +1,117 @@
+# Infrastructure Helm chart values for minikube
+# Sized small deliberately - single replicas, minimal resources
+#
+# NOTE: image.tag is set to "latest" for Bitnami components.
+#       Kafka and MinIO use their official images (see templates/kafka.yaml and templates/minio.yaml)
+#       because Bitnami removed those images from Docker Hub.
+# -- PostgreSQL ----------------------------------------------------------------
+postgres:
+  image:
+    tag: latest
+  auth:
+    username: lawforyou
+    password: lawforyou
+    postgresPassword: lawforyou
+  primary:
+    persistence:
+      size: 2Gi
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits:   { cpu: 500m, memory: 512Mi }
+    startupProbe:
+      enabled: true
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 30   # 5 minutes for slow recovery after dirty shutdown
+      successThreshold: 1
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 60
+      periodSeconds: 20
+      timeoutSeconds: 5
+      failureThreshold: 6
+      successThreshold: 1
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 6
+      successThreshold: 1
+    initdb:
+      scripts:
+        init.sql: |
+          CREATE DATABASE user_db;
+          CREATE DATABASE case_db;
+          CREATE DATABASE billing_db;
+  fullnameOverride: lawforyou-postgres
+# -- Redis ---------------------------------------------------------------------
+redis:
+  image:
+    tag: latest
+  auth:
+    enabled: false
+  architecture: standalone
+  master:
+    persistence:
+      size: 1Gi
+    resources:
+      requests: { cpu: 50m,  memory: 128Mi }
+      limits:   { cpu: 200m, memory: 256Mi }
+    startupProbe:
+      enabled: true
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 18   # 3 minutes for slow start
+      successThreshold: 1
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 30
+      periodSeconds: 20
+      timeoutSeconds: 10
+      failureThreshold: 6
+      successThreshold: 1
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 6
+      successThreshold: 1
+  fullnameOverride: lawforyou-redis
+# -- MongoDB -------------------------------------------------------------------
+mongodb:
+  image:
+    tag: latest
+  auth:
+    enabled: false
+  persistence:
+    size: 2Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 1Gi }
+  startupProbe:
+    enabled: true
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30   # 5 minutes for slow startup/recovery
+    successThreshold: 1
+  livenessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 20
+    timeoutSeconds: 10
+    failureThreshold: 6
+    successThreshold: 1
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  fullnameOverride: lawforyou-mongodb
+# -- Kafka and MinIO are deployed via templates/kafka.yaml and templates/minio.yaml
+# using apache/kafka:latest and minio/minio:latest (Bitnami removed these from Docker Hub).
+# Service names:  lawforyou-kafka:9092   lawforyou-minio:9000
