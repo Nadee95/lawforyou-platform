@@ -1,0 +1,101 @@
+name: CI — Build & Test
+
+on:
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  # ── Java services ────────────────────────────────────────────────────────────
+  build-java:
+    name: Build & Test Java Services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Configure GitHub Packages credentials
+        run: |
+          mkdir -p ~/.gradle
+          echo "gpr.user=${{ github.actor }}" >> ~/.gradle/gradle.properties
+          echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" >> ~/.gradle/gradle.properties
+
+      - name: Build all Java services
+        working-directory: lawforyou-platform
+        run: ./gradlew build -x test --no-daemon
+
+      - name: Run unit tests
+        working-directory: lawforyou-platform
+        run: ./gradlew test --no-daemon
+        env:
+          SPRING_PROFILES_ACTIVE: test
+
+      - name: Publish test report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Java Test Results
+          path: "lawforyou-platform/**/build/test-results/test/*.xml"
+          reporter: java-junit
+
+  # ── NestJS communication-service ─────────────────────────────────────────────
+  build-nestjs:
+    name: Build & Test NestJS Communication Service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: lawforyou-platform/services/communication-service/package-lock.json
+
+      - name: Install dependencies
+        working-directory: lawforyou-platform/services/communication-service
+        run: npm ci
+
+      - name: Build
+        working-directory: lawforyou-platform/services/communication-service
+        run: npm run build
+
+      - name: Run tests
+        working-directory: lawforyou-platform/services/communication-service
+        run: npm test -- --passWithNoTests
+
+  # ── Helm lint ─────────────────────────────────────────────────────────────────
+  helm-lint:
+    name: Lint Helm Charts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+
+      - name: Lint all charts
+        run: |
+          for chart in lawforyou-platform/helm/charts/*/; do
+            echo "Linting $chart"
+            helm lint "$chart"
+          done
+

@@ -1,0 +1,27 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/nadee95/lawforyou/config-server
+  pullPolicy: IfNotPresent
+  tag: "0.1.0"
+
+imagePullSecrets:
+  - name: lawforyou-ghcr-pull-secret
+
+service:
+  type: ClusterIP
+  port: 8888
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 300m
+    memory: 512Mi
+
+env:
+  SPRING_PROFILES_ACTIVE: "native"
+  JAVA_OPTS: "-Xms128m -Xmx256m"
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eureka-server:8761/eureka/"
+

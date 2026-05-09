@@ -1,0 +1,21 @@
+apiVersion: v2
+name: lawforyou-infra
+description: >
+  Umbrella chart for LawForYou infrastructure dependencies.
+  Used for minikube full-stack testing only.
+  Local JVM dev uses docker-compose.infra.yml instead.
+type: application
+version: 0.1.0
+dependencies:
+  - name: postgresql
+    version: "15.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    alias: postgres
+  - name: redis
+    version: "19.x.x"
+    repository: https://charts.bitnami.com/bitnami
+  - name: mongodb
+    version: "15.x.x"
+    repository: https://charts.bitnami.com/bitnami
+  # kafka  -> templates/kafka.yaml  (apache/kafka:latest  - Bitnami removed from Docker Hub)
+  # minio  -> templates/minio.yaml  (minio/minio:latest   - Bitnami removed from Docker Hub)
