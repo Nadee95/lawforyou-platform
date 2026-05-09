@@ -1,0 +1,26 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/nadee95/lawforyou/eureka-server
+  pullPolicy: IfNotPresent
+  tag: "0.1.0"
+
+imagePullSecrets:
+  - name: lawforyou-ghcr-pull-secret
+
+service:
+  type: ClusterIP
+  port: 8761
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 300m
+    memory: 512Mi
+
+env:
+  SPRING_PROFILES_ACTIVE: "docker"
+  JAVA_OPTS: "-Xms128m -Xmx256m"
+

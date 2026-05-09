@@ -1,0 +1,15 @@
+# ExternalName service to alias "lawforyou-redis" -> "lawforyou-redis-master"
+# Services (case-service, user-service) reference "lawforyou-redis" but the
+# Bitnami Redis chart exposes the master as "lawforyou-redis-master".
+apiVersion: v1
+kind: Service
+metadata:
+  name: lawforyou-redis
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ExternalName
+  externalName: lawforyou-redis-master.{{ .Release.Namespace }}.svc.cluster.local
+  ports:
+    - port: 6379
+      targetPort: 6379
+

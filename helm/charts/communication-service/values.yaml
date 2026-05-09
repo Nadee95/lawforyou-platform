@@ -1,0 +1,43 @@
+activeSlot: blue
+
+blue:
+  image:
+    tag: "0.1.0"
+
+green:
+  image:
+    tag: "0.1.0"
+
+image:
+  repository: ghcr.io/nadee95/lawforyou/communication-service
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: lawforyou-ghcr-pull-secret
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8084
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
+secrets:
+  existingSecret: lawforyou-comm-secret
+
+env:
+  NODE_ENV: "production"
+  PORT: "8084"
+  KAFKA_BROKERS: "lawforyou-kafka:9092"
+  KAFKA_GROUP_ID: "communication-service"
+  KAFKA_CLIENT_ID: "communication-service"
+  EUREKA_HOST: "eureka-server"
+  EUREKA_PORT: "8761"
+
