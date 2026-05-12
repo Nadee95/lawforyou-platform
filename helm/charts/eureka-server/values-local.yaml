@@ -1,0 +1,16 @@
+# Local minikube override - images already loaded via minikube docker-env
+# No pull from registry; no pull secret required.
+image:
+  pullPolicy: Never
+imagePullSecrets: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 200Mi
+  limits:
+    cpu: 300m
+    memory: 640Mi
+
+env:
+  JAVA_TOOL_OPTIONS: "-Xms32m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:TieredStopAtLevel=1 -XX:+UseContainerSupport"

@@ -1,0 +1,15 @@
+# Local minikube override - images already loaded via minikube docker-env
+# No pull from registry; no pull secret required.
+image:
+  pullPolicy: Never
+imagePullSecrets: []
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 384Mi
+
+inactiveReplicaCount: 0

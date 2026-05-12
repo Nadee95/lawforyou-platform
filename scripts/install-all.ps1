@@ -14,11 +14,11 @@ $InfraDir  = Join-Path $ScriptDir "..\helm\infra"
 
 function Deploy-Service {
     param(
-        [string]$Name,
-        [string]$ChartPath,
-        [string]$ValuesFile,
-        [switch]$Wait,
-        [int]   $TimeoutMinutes = 5
+        [string]  $Name,
+        [string]  $ChartPath,
+        [string[]]$ValuesFiles = @(),
+        [switch]  $Wait,
+        [int]     $TimeoutMinutes = 5
     )
     Write-Host ""
     Write-Host "------------------------------------------" -ForegroundColor Cyan
@@ -29,16 +29,26 @@ function Deploy-Service {
         "--namespace", $Namespace,
         "--timeout", "${TimeoutMinutes}m"
     )
-    if ($ValuesFile -and (Test-Path $ValuesFile)) { $helmArgs += @("-f", $ValuesFile) }
+    foreach ($vf in $ValuesFiles) {
+        if ($vf -and (Test-Path $vf)) { $helmArgs += @("-f", $vf) }
+    }
     if ($Wait) { $helmArgs += "--wait" }
     helm @helmArgs
     if ($LASTEXITCODE -ne 0) { Write-Error "Helm install failed for $Name"; exit 1 }
 }
 
 # ── 1. Infrastructure ──────────────────────────────────────────────────────────
-# Always pass -f values.yaml so sub-chart probe/resource overrides
-# are user-supplied (highest priority) and not silently ignored.
-Deploy-Service "lawforyou-infra" $InfraDir (Join-Path $InfraDir "values.yaml") -Wait -TimeoutMinutes 10
+# values.yaml        — base config (committed, no credentials)
+# values-local.yaml  — credential overrides (gitignored; copy from values-local.yaml.example)
+$InfraLocalValues = Join-Path $InfraDir "values-local.yaml"
+if (-not (Test-Path $InfraLocalValues)) {
+    Write-Warning "helm/infra/values-local.yaml not found — copying from example template."
+    Copy-Item (Join-Path $InfraDir "values-local.yaml.example") $InfraLocalValues
+}
+Deploy-Service "lawforyou-infra" $InfraDir @(
+    (Join-Path $InfraDir "values.yaml"),
+    $InfraLocalValues
+) -Wait -TimeoutMinutes 10
 
 # ── 2. Infra-tier services (must be ready before app services) ─────────────────
 Deploy-Service "config-server"  (Join-Path $HelmDir "config-server")  -Wait -TimeoutMinutes 10
