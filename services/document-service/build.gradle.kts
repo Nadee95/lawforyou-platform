@@ -8,6 +8,7 @@ dependencies {
     implementation("com.nadeex.spring:exception:${rootProject.extra["nadeexExceptionVersion"]}")
     implementation("com.nadeex.spring:logging:${rootProject.extra["nadeexLoggingVersion"]}")
     implementation("com.nadeex.spring:security:${rootProject.extra["nadeexSecurityVersion"]}")
+    implementation("com.nadeex.spring:multitenancy:${rootProject.extra["nadeexMultitenancyVersion"]}")
 
     // Web + Validation
     implementation("org.springframework.boot:spring-boot-starter-web")

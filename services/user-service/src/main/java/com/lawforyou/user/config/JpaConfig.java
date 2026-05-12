@@ -1,6 +1,6 @@
 package com.lawforyou.user.config;
 
-import com.lawforyou.user.multitenancy.TenantIdentifierResolver;
+import com.nadeex.spring.multitenancy.hibernate.TenantIdentifierResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
 import org.springframework.context.annotation.Bean;
