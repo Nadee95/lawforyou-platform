@@ -7,16 +7,18 @@ plugins {
 }
 
 val springCloudVersion = "2024.0.1"
-val nadeexCommonVersion    = "0.1.0"
-val nadeexExceptionVersion = "0.3.0"
-val nadeexLoggingVersion   = "0.1.0"
-val nadeexSecurityVersion = "0.3.1"
+val nadeexCommonVersion         = "0.1.0"
+val nadeexExceptionVersion      = "0.3.0"
+val nadeexLoggingVersion        = "0.1.0"
+val nadeexSecurityVersion       = "0.3.1"
+val nadeexMultitenancyVersion   = "0.1.0"
 
 // Expose to all subprojects so each service references a single source of truth
-extra["nadeexCommonVersion"]    = nadeexCommonVersion
-extra["nadeexExceptionVersion"] = nadeexExceptionVersion
-extra["nadeexLoggingVersion"]   = nadeexLoggingVersion
-extra["nadeexSecurityVersion"]  = nadeexSecurityVersion
+extra["nadeexCommonVersion"]        = nadeexCommonVersion
+extra["nadeexExceptionVersion"]     = nadeexExceptionVersion
+extra["nadeexLoggingVersion"]       = nadeexLoggingVersion
+extra["nadeexSecurityVersion"]      = nadeexSecurityVersion
+extra["nadeexMultitenancyVersion"]  = nadeexMultitenancyVersion
 
 val githubUser: String = (findProperty("gpr.user") as String?) ?: System.getenv("GITHUB_ACTOR") ?: ""
 val githubToken: String = (findProperty("gpr.key") as String?) ?: System.getenv("GITHUB_TOKEN") ?: ""
