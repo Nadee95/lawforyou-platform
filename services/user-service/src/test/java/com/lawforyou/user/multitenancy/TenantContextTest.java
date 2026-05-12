@@ -1,5 +1,6 @@
 package com.lawforyou.user.multitenancy;
 
+import com.nadeex.spring.multitenancy.context.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
