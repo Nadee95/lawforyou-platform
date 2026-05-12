@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
@@ -27,6 +28,13 @@ import java.util.Map;
  *   <li>{@code RS256} → validated with {@link ReactiveJwtDecoder} (Keycloak JWKS)</li>
  *   <li>Anything else → validated with {@link JwtTokenProvider} (shared HS256 secret)</li>
  * </ul>
+ *
+ * <h3>Token blacklist (Phase 5)</h3>
+ * Before any JWT validation, the raw token is checked against the Redis blacklist
+ * (key format: {@code token:bl:<jwt>}) written by {@code user-service} on logout.
+ * Blacklisted tokens are rejected with {@code 401} immediately — even if they are
+ * still cryptographically valid. If Redis is unavailable the request is <b>rejected
+ * (fail-closed)</b> to prevent post-logout token reuse during an outage.
  *
  * <h3>Downstream contract (Phase 5)</h3>
  * After successful validation, the original Authorization header is <b>removed</b> and
@@ -51,7 +59,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DualTokenAuthenticationFilter implements GlobalFilter, Ordered {
 
-    private static final String BEARER_PREFIX    = "Bearer ";
+    private static final String BEARER_PREFIX      = "Bearer ";
     private static final String HEADER_AUTH        = "Authorization";
     private static final String HEADER_USER_ID     = "X-User-ID";
     private static final String HEADER_TENANT_ID   = "X-Tenant-ID";
@@ -59,13 +67,17 @@ public class DualTokenAuthenticationFilter implements GlobalFilter, Ordered {
     private static final String HEADER_ROLES       = "X-Roles";
     private static final String HEADER_PERMISSIONS = "X-Permissions";
 
+    /** Must match {@code TokenBlacklistServiceImpl.KEY_PREFIX} in user-service. */
+    private static final String BLACKLIST_KEY_PREFIX = "token:bl:";
+
     private static final List<String> PUBLIC_PATHS = List.of(
             "/api/auth/", "/actuator/", "/v3/api-docs", "/swagger-ui"
     );
 
-    private final JwtTokenProvider  legacyJwtProvider;
-    private final ReactiveJwtDecoder keycloakJwtDecoder;
-    private final ObjectMapper       objectMapper;
+    private final JwtTokenProvider          legacyJwtProvider;
+    private final ReactiveJwtDecoder        keycloakJwtDecoder;
+    private final ObjectMapper              objectMapper;
+    private final ReactiveStringRedisTemplate reactiveRedisTemplate;
 
     @Override
     public int getOrder() {
@@ -89,11 +101,27 @@ public class DualTokenAuthenticationFilter implements GlobalFilter, Ordered {
         String token = authHeader.substring(BEARER_PREFIX.length());
         String alg   = readAlgorithmFromJwtHeader(token);
 
-        if ("RS256".equals(alg)) {
-            return handleKeycloakToken(token, exchange, chain);
-        } else {
-            return handleLegacyToken(token, exchange, chain);
-        }
+        // ── Blacklist check (fail-closed) ────────────────────────────────────
+        // Checked BEFORE signature validation so a logged-out token never reaches
+        // downstream services, even if it is still cryptographically valid.
+        return reactiveRedisTemplate.hasKey(BLACKLIST_KEY_PREFIX + token)
+                .flatMap(blacklisted -> {
+                    if (Boolean.TRUE.equals(blacklisted)) {
+                        log.warn("Rejected blacklisted token for path: {}", path);
+                        return unauthorized(exchange);
+                    }
+                    if ("RS256".equals(alg)) {
+                        return handleKeycloakToken(token, exchange, chain);
+                    } else {
+                        return handleLegacyToken(token, exchange, chain);
+                    }
+                })
+                .onErrorResume(e -> {
+                    // Redis unavailable → fail-closed: reject request rather than
+                    // risk allowing a post-logout token through.
+                    log.error("Redis blacklist check failed for path '{}': {}", path, e.getMessage());
+                    return unauthorized(exchange);
+                });
     }
 
     // ── Keycloak RS256 path ───────────────────────────────────────────────────
