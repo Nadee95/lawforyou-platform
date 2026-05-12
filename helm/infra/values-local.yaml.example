@@ -1,0 +1,14 @@
+# ============================================================================
+# LOCAL DEV ONLY — copy this file to values-local.yaml and edit as needed.
+#
+#   cp helm/infra/values-local.yaml.example helm/infra/values-local.yaml
+#
+# values-local.yaml is gitignored — NEVER commit it.
+# ============================================================================
+
+postgres:
+  auth:
+    username: lawforyou
+    password: lawforyou          # local dev password — change for staging/prod
+    postgresPassword: lawforyou  # local dev password — change for staging/prod
+

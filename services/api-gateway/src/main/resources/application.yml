@@ -81,7 +81,7 @@ spring:
                 redis-rate-limiter.burstCapacity: 20
                 key-resolver: "#{@tenantKeyResolver}"
 
-  # ── Redis (rate limiting + future token blacklist) ─────────────────────────
+  # ── Redis (rate limiting + token blacklist) ────────────────────────────────
   data:
     redis:
       host: localhost

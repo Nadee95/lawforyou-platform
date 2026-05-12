@@ -31,3 +31,9 @@ logs/
 **/src/main/resources/application-prod.yml
 **/src/main/resources/application-secrets.yml
 
+# Helm — local credential overrides (use values-local.yaml.example as template)
+helm/infra/values-local.yaml
+
+# Helm — vendored chart tarballs (regenerate with: helm dep update helm/infra)
+helm/infra/charts/*.tgz
+
