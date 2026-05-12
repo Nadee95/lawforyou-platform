@@ -1,6 +1,11 @@
 # Infrastructure Helm chart values for minikube
 # Sized small deliberately - single replicas, minimal resources
 #
+# ⚠️  CREDENTIALS: This file contains PLACEHOLDER passwords only.
+#     For local dev, copy values-local.yaml.example → values-local.yaml and set real passwords.
+#     values-local.yaml is gitignored and must never be committed.
+#     In production, credentials are injected via Kubernetes Secrets (see k8s/secrets/README.md).
+#
 # NOTE: image.tag is set to "latest" for Bitnami components.
 #       Kafka and MinIO use their official images (see templates/kafka.yaml and templates/minio.yaml)
 #       because Bitnami removed those images from Docker Hub.
@@ -10,8 +15,8 @@ postgres:
     tag: latest
   auth:
     username: lawforyou
-    password: lawforyou
-    postgresPassword: lawforyou
+    password: changeme          # ← override in values-local.yaml (gitignored)
+    postgresPassword: changeme  # ← override in values-local.yaml (gitignored)
   primary:
     persistence:
       size: 2Gi
