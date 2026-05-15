@@ -38,8 +38,49 @@ subprojects {
     }
 
     repositories {
-        mavenLocal()        // resolves nadeex-* libs published locally
+        mavenLocal()        // resolves nadeex-* libs published locally (local dev only)
         mavenCentral()
+        // GitHub Packages — nadeex-* libraries (used in CI where mavenLocal() is empty)
+        maven {
+            name = "GitHubPackages-Common"
+            url = uri("https://maven.pkg.github.com/Nadee95/nadeex-spring-common")
+            credentials {
+                username = githubUser
+                password = githubToken
+            }
+        }
+        maven {
+            name = "GitHubPackages-Exception"
+            url = uri("https://maven.pkg.github.com/Nadee95/nadeex-spring-exception")
+            credentials {
+                username = githubUser
+                password = githubToken
+            }
+        }
+        maven {
+            name = "GitHubPackages-Logging"
+            url = uri("https://maven.pkg.github.com/Nadee95/nadeex-spring-logging")
+            credentials {
+                username = githubUser
+                password = githubToken
+            }
+        }
+        maven {
+            name = "GitHubPackages-Security"
+            url = uri("https://maven.pkg.github.com/Nadee95/nadeex-spring-security")
+            credentials {
+                username = githubUser
+                password = githubToken
+            }
+        }
+        maven {
+            name = "GitHubPackages-Multitenancy"
+            url = uri("https://maven.pkg.github.com/Nadee95/nadeex-spring-multitenancy")
+            credentials {
+                username = githubUser
+                password = githubToken
+            }
+        }
     }
 
     the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
