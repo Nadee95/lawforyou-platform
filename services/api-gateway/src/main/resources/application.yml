@@ -41,8 +41,8 @@ spring:
           filters:
             - name: RequestRateLimiter
               args:
-                redis-rate-limiter.replenishRate: 30
-                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.replenishRate: 50    # was: 30
+                redis-rate-limiter.burstCapacity: 200   # absorbs startup burst (was: 100)
                 key-resolver: "#{@tenantKeyResolver}"
 
         # ── Case Service ──────────────────────────────────────────────────────
@@ -53,8 +53,8 @@ spring:
           filters:
             - name: RequestRateLimiter
               args:
-                redis-rate-limiter.replenishRate: 30
-                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.replenishRate: 50    # tokens/sec added to bucket (was: 30)
+                redis-rate-limiter.burstCapacity: 200   # absorbs k6-style startup burst (was: 100)
                 key-resolver: "#{@tenantKeyResolver}"
 
         # ── Document Service ──────────────────────────────────────────────────
@@ -86,6 +86,15 @@ spring:
     redis:
       host: localhost
       port: 6379
+      lettuce:
+        pool:
+          # Each gateway request makes 3 Redis ops: blacklist hasKey + rate-limiter GET + SET.
+          # At 50 VUs → ~150 Redis ops/sec. Default pool (8 conns) saturates and causes
+          # Lettuce timeout → onErrorResume → 401 on valid requests.
+          max-active: 32     # max concurrent connections  (default: 8)
+          max-idle: 16       # max idle connections kept warm
+          min-idle: 8        # always keep 8 warm
+          max-wait: 2000ms   # wait up to 2s for a connection before throwing
 
 # ── Eureka ──────────────────────────────────────────────────────────────────
 eureka:

@@ -21,8 +21,12 @@
  */
 import http from 'k6/http';
 import { check, sleep } from 'k6';
+import { Counter } from 'k6/metrics';
 import { loginAsAdmin, readHeaders } from '../helpers/auth.js';
 import { ENV } from '../config/env.js';
+import { logError } from '../helpers/utils.js';
+
+const errors = new Counter('stress_errors');
 
 export const options = {
   stages: [
@@ -51,7 +55,8 @@ export default function (data) {
     `${ENV.apiGateway}/api/cases?page=0&size=10`,
     { headers, tags: { endpoint: 'listCases' } }
   );
-  check(r1, { 'cases ok': (r) => r.status === 200 });
+  const ok1 = check(r1, { 'cases ok': (r) => r.status === 200 });
+  if (!ok1) { errors.add(1, { endpoint: 'listCases' }); logError('stress:listCases', r1); }
 
   sleep(0.2);
 
@@ -59,7 +64,8 @@ export default function (data) {
     `${ENV.userService}/api/users?page=0&size=10`,
     { headers, tags: { endpoint: 'listUsers' } }
   );
-  check(r2, { 'users ok': (r) => r.status === 200 });
+  const ok2 = check(r2, { 'users ok': (r) => r.status === 200 });
+  if (!ok2) { errors.add(1, { endpoint: 'listUsers' }); logError('stress:listUsers', r2); }
 
   sleep(0.3);
 }
