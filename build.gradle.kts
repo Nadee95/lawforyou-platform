@@ -12,6 +12,7 @@ val nadeexExceptionVersion      = "0.3.0"
 val nadeexLoggingVersion        = "0.1.0"
 val nadeexSecurityVersion       = "0.3.1"
 val nadeexMultitenancyVersion   = "0.1.0"
+val nadeexObservabilityVersion  = "0.1.0"
 
 // Expose to all subprojects so each service references a single source of truth
 extra["nadeexCommonVersion"]        = nadeexCommonVersion
@@ -19,6 +20,7 @@ extra["nadeexExceptionVersion"]     = nadeexExceptionVersion
 extra["nadeexLoggingVersion"]       = nadeexLoggingVersion
 extra["nadeexSecurityVersion"]      = nadeexSecurityVersion
 extra["nadeexMultitenancyVersion"]  = nadeexMultitenancyVersion
+extra["nadeexObservabilityVersion"] = nadeexObservabilityVersion
 
 val githubUser: String = (findProperty("gpr.user") as String?) ?: System.getenv("GITHUB_ACTOR") ?: ""
 val githubToken: String = (findProperty("gpr.key") as String?) ?: System.getenv("GITHUB_TOKEN") ?: ""
@@ -76,6 +78,14 @@ subprojects {
         maven {
             name = "GitHubPackages-Multitenancy"
             url = uri("https://maven.pkg.github.com/Nadee95/nadeex-spring-multitenancy")
+            credentials {
+                username = githubUser
+                password = githubToken
+            }
+        }
+        maven {
+            name = "GitHubPackages-Observability"
+            url = uri("https://maven.pkg.github.com/Nadee95/nadeex-spring-observability")
             credentials {
                 username = githubUser
                 password = githubToken

@@ -3,11 +3,12 @@ plugins {
     jacoco
 }
 
-val nadeexCommonVersion:       String by rootProject.extra
-val nadeexExceptionVersion:    String by rootProject.extra
-val nadeexLoggingVersion:      String by rootProject.extra
-val nadeexSecurityVersion:     String by rootProject.extra
-val nadeexMultitenancyVersion: String by rootProject.extra
+val nadeexCommonVersion:         String by rootProject.extra
+val nadeexExceptionVersion:     String by rootProject.extra
+val nadeexLoggingVersion:       String by rootProject.extra
+val nadeexSecurityVersion:      String by rootProject.extra
+val nadeexMultitenancyVersion:  String by rootProject.extra
+val nadeexObservabilityVersion: String by rootProject.extra
 
 dependencies {
     // Nadeex shared libraries
@@ -16,6 +17,7 @@ dependencies {
     implementation("com.nadeex.spring:logging:$nadeexLoggingVersion")
     implementation("com.nadeex.spring:security:$nadeexSecurityVersion")
     implementation("com.nadeex.spring:multitenancy:$nadeexMultitenancyVersion")
+    implementation("com.nadeex.spring:observability:$nadeexObservabilityVersion")
 
     // Web + Validation
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -45,9 +47,7 @@ dependencies {
     // Config Client
     implementation("org.springframework.cloud:spring-cloud-starter-config")
 
-    // Observability
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("io.micrometer:micrometer-registry-prometheus")
+    // Observability — actuator + prometheus come transitively from nadeex-observability
     implementation("io.micrometer:micrometer-tracing-bridge-brave")
     implementation("io.zipkin.reporter2:zipkin-reporter-brave")
 
