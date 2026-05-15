@@ -13,8 +13,37 @@
  */
 import http from 'k6/http';
 import { check, sleep } from 'k6';
+import { Counter } from 'k6/metrics';
 import { loginAsAdmin, login, readHeaders } from '../helpers/auth.js';
 import { ENV } from '../config/env.js';
+import { logError } from '../helpers/utils.js';
+
+// ── Custom per-endpoint error counters ────────────────────────────────────────
+// These show up in the summary so you know WHICH endpoint is failing.
+const caseErrors = new Counter('case_errors');
+const userErrors = new Counter('user_errors');
+
+// ── Status code breakdown — tells us the ROOT CAUSE in the summary ────────────
+// Run once, look at CUSTOM section in results to see which counter incremented.
+const case429 = new Counter('case_status_429');   // rate limited by gateway
+const case403 = new Counter('case_status_403');   // forbidden — auth/permission issue
+const case500 = new Counter('case_status_500');   // case-service threw exception
+const case502 = new Counter('case_status_502');   // bad gateway (case-service crash)
+const case503 = new Counter('case_status_503');   // service unavailable (Eureka miss)
+const caseOther = new Counter('case_status_other'); // anything else unexpected
+
+function trackCaseError(res) {
+  caseErrors.add(1);
+  logError('case', res);
+  switch (res.status) {
+    case 429: case429.add(1);   break;
+    case 403: case403.add(1);   break;
+    case 500: case500.add(1);   break;
+    case 502: case502.add(1);   break;
+    case 503: case503.add(1);   break;
+    default:  caseOther.add(1, { status: String(res.status) }); break;
+  }
+}
 
 export const options = {
   stages: [
@@ -59,10 +88,11 @@ export default function (data) {
     `${ENV.userService}/api/users?page=0&size=10`,
     { headers, tags: { scenario: 'listUsers' } }
   );
-  check(usersRes, {
+  const usersOk = check(usersRes, {
     'list users → 200':       (r) => r.status === 200,
     'list users has content': (r) => Array.isArray(r.json('content')),
   });
+  if (!usersOk) userErrors.add(1, { endpoint: 'listUsers' }) && logError('list users', usersRes);
 
   sleep(0.3);
 
@@ -71,7 +101,8 @@ export default function (data) {
     `${ENV.apiGateway}/api/cases?page=0&size=10`,
     { headers, tags: { scenario: 'listCases' } }
   );
-  check(casesRes, { 'list cases → 200': (r) => r.status === 200 });
+  const casesOk = check(casesRes, { 'list cases → 200': (r) => r.status === 200 });
+  if (!casesOk) trackCaseError(casesRes);
 
   sleep(0.3);
 
@@ -80,7 +111,8 @@ export default function (data) {
     `${ENV.apiGateway}/api/cases?status=OPEN&page=0&size=10`,
     { headers, tags: { scenario: 'listCases' } }
   );
-  check(openCasesRes, { 'filter OPEN cases → 200': (r) => r.status === 200 });
+  const openOk = check(openCasesRes, { 'filter OPEN cases → 200': (r) => r.status === 200 });
+  if (!openOk) trackCaseError(openCasesRes);
 
   sleep(0.3);
 
@@ -89,7 +121,8 @@ export default function (data) {
     `${ENV.userService}/api/users/search?q=admin`,
     { headers, tags: { scenario: 'listUsers' } }
   );
-  check(searchRes, { 'user search → 200': (r) => r.status === 200 });
+  const searchOk = check(searchRes, { 'user search → 200': (r) => r.status === 200 });
+  if (!searchOk) { userErrors.add(1, { endpoint: 'userSearch' }); logError('user search', searchRes); }
 
   sleep(1);
 }

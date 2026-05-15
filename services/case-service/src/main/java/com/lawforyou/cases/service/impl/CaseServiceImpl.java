@@ -25,6 +25,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -90,9 +92,19 @@ public class CaseServiceImpl implements CaseService {
             page = caseRepository.findAllByTenantId(tenantId, pageable);
         }
 
+        List<Case> cases = page.getContent();
+
+        // ── Batch-load active assignments in 1 query (eliminates N+1) ─────────
+        // Previously: 1 query for page + N queries for active lawyer (one per case).
+        // Now: 1 query for page + 1 query for all active assignments on that page.
+        List<UUID> caseIds = cases.stream().map(Case::getId).toList();
+        Map<UUID, UUID> activeLawyers = caseIds.isEmpty()
+                ? Map.of()
+                : caseAssignmentRepository.activeLawyersByCaseId(caseIds);
+
         return PagedResponse.of(
-                page.getContent().stream()
-                        .map(c -> toDto(c, getActiveLawyerId(c.getId())))
+                cases.stream()
+                        .map(c -> toDto(c, activeLawyers.get(c.getId())))
                         .toList(),
                 page.getNumber(),
                 page.getSize(),

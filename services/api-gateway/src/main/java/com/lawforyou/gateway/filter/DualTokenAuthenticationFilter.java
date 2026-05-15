@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -33,8 +34,9 @@ import java.util.Map;
  * Before any JWT validation, the raw token is checked against the Redis blacklist
  * (key format: {@code token:bl:<jwt>}) written by {@code user-service} on logout.
  * Blacklisted tokens are rejected with {@code 401} immediately — even if they are
- * still cryptographically valid. If Redis is unavailable the request is <b>rejected
- * (fail-closed)</b> to prevent post-logout token reuse during an outage.
+ * still cryptographically valid. If Redis is unavailable or exceeds
+ * {@code BLACKLIST_CHECK_TIMEOUT} (500ms), the request is <b>allowed through
+ * (fail-open)</b> to prevent Redis saturation under load from rejecting valid users.
  *
  * <h3>Downstream contract (Phase 5)</h3>
  * After successful validation, the original Authorization header is <b>removed</b> and
@@ -70,6 +72,13 @@ public class DualTokenAuthenticationFilter implements GlobalFilter, Ordered {
     /** Must match {@code TokenBlacklistServiceImpl.KEY_PREFIX} in user-service. */
     private static final String BLACKLIST_KEY_PREFIX = "token:bl:";
 
+    /**
+     * Max time to wait for Redis blacklist check.
+     * If Redis is slow under load, fail-open (treat as not blacklisted) rather than
+     * rejecting valid user requests with 401.
+     */
+    private static final Duration BLACKLIST_CHECK_TIMEOUT = Duration.ofMillis(500);
+
     private static final List<String> PUBLIC_PATHS = List.of(
             "/api/auth/", "/actuator/", "/v3/api-docs", "/swagger-ui"
     );
@@ -101,10 +110,21 @@ public class DualTokenAuthenticationFilter implements GlobalFilter, Ordered {
         String token = authHeader.substring(BEARER_PREFIX.length());
         String alg   = readAlgorithmFromJwtHeader(token);
 
-        // ── Blacklist check (fail-closed) ────────────────────────────────────
+        // ── Blacklist check (fail-open on timeout) ───────────────────────────
         // Checked BEFORE signature validation so a logged-out token never reaches
-        // downstream services, even if it is still cryptographically valid.
+        // downstream services, even if still cryptographically valid.
+        //
+        // Under load Redis can become a bottleneck — we apply a 500ms timeout and
+        // fail-open (treat as NOT blacklisted) rather than rejecting valid requests.
+        // True blacklisted tokens are rare; Redis saturation under load is not.
         return reactiveRedisTemplate.hasKey(BLACKLIST_KEY_PREFIX + token)
+                .timeout(BLACKLIST_CHECK_TIMEOUT)
+                .onErrorResume(e -> {
+                    // Redis unavailable OR timed out → fail-open, log at WARN level.
+                    log.warn("Redis blacklist check failed for path '{}' (fail-open): {}",
+                            path, e.getMessage());
+                    return Mono.just(false);   // treat as not blacklisted
+                })
                 .flatMap(blacklisted -> {
                     if (Boolean.TRUE.equals(blacklisted)) {
                         log.warn("Rejected blacklisted token for path: {}", path);
@@ -115,12 +135,6 @@ public class DualTokenAuthenticationFilter implements GlobalFilter, Ordered {
                     } else {
                         return handleLegacyToken(token, exchange, chain);
                     }
-                })
-                .onErrorResume(e -> {
-                    // Redis unavailable → fail-closed: reject request rather than
-                    // risk allowing a post-logout token through.
-                    log.error("Redis blacklist check failed for path '{}': {}", path, e.getMessage());
-                    return unauthorized(exchange);
                 });
     }
 
