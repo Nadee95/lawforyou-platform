@@ -1,7 +1,7 @@
 package com.lawforyou.user.security;
 
 import com.nadeex.spring.security.config.SecurityFilterChainConfigurer;
-import com.nadeex.spring.security.filter.JwtAuthenticationFilter;
+import com.nadeex.spring.security.filter.HeaderAuthenticationFilter;
 import com.lawforyou.user.service.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +16,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * Spring Security configuration for the User Service.
@@ -37,6 +38,7 @@ public class SecurityConfig {
     private final UserDetailsServiceImpl        userDetailsService;
     private final SecurityFilterChainConfigurer securityFilterChainConfigurer;
     private final TokenBlacklistService         tokenBlacklistService;
+    private final HeaderAuthenticationFilter         headerAuthenticationFilter;
 
     @Bean
     public TokenBlacklistFilter tokenBlacklistFilter() {
@@ -45,6 +47,19 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+        // Desired execution order:
+        //   TokenBlacklistFilter → HeaderAuthenticationFilter → JwtAuthFilter (added by configurer) → UPAF
+        //
+        // Register in REVERSE order with addFilterBefore(x, UsernamePasswordAuthenticationFilter):
+        //   1. Register HeaderAuth  → sits just before UPAF
+        //   2. Register Blacklist   → sits just before UPAF, pushing HeaderAuth further right
+        // Result: Blacklist → HeaderAuth → UPAF ✅
+
+        http.addFilterBefore(headerAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(tokenBlacklistFilter(),      UsernamePasswordAuthenticationFilter.class);
+
+
         SecurityFilterChain chain = securityFilterChainConfigurer.build(http, auth -> auth
                 // Public — authentication endpoints
                 .requestMatchers(HttpMethod.POST,
@@ -59,7 +74,9 @@ public class SecurityConfig {
                 // Everything else requires authentication
                 .anyRequest().authenticated()
         );
-        http.addFilterBefore(tokenBlacklistFilter(), JwtAuthenticationFilter.class);
+
+
+
         return chain;
     }
 
