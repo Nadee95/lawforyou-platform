@@ -27,6 +27,9 @@ dependencies {
 
     // Redis — rate limiting + token blacklist
     implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
+    // commons-pool2 is required to activate Lettuce connection pooling
+    // (lettuce.pool.* properties in application.yml are silently ignored without it)
+    implementation("org.apache.commons:commons-pool2")
 
     // JWT
     implementation("io.jsonwebtoken:jjwt-api:0.12.5")

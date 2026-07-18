@@ -8,6 +8,8 @@ dependencies {
     implementation("com.nadeex.spring:exception:${rootProject.extra["nadeexExceptionVersion"]}")
     implementation("com.nadeex.spring:logging:${rootProject.extra["nadeexLoggingVersion"]}")
     implementation("com.nadeex.spring:security:${rootProject.extra["nadeexSecurityVersion"]}")
+    implementation("com.nadeex.spring:multitenancy:${rootProject.extra["nadeexMultitenancyVersion"]}")
+    implementation("com.nadeex.spring:observability:${rootProject.extra["nadeexObservabilityVersion"]}")
 
     // Web + Validation
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -31,9 +33,7 @@ dependencies {
     // Config Client
     implementation("org.springframework.cloud:spring-cloud-starter-config")
 
-    // Observability
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("io.micrometer:micrometer-registry-prometheus")
+    // Observability — actuator + prometheus come transitively from nadeex-observability
     implementation("io.micrometer:micrometer-tracing-bridge-brave")
     implementation("io.zipkin.reporter2:zipkin-reporter-brave")
 

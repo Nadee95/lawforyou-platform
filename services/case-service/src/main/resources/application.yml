@@ -45,16 +45,8 @@ eureka:
     prefer-ip-address: true
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: always
-  tracing:
-    sampling:
-      probability: 1.0
+  # Defaults provided by nadeex-spring-observability (actuator endpoints, health details, 100% sampling)
+  # Override here only if you need non-default values:
   zipkin:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
@@ -65,4 +57,7 @@ management:
 app:
   outbox:
     relay-delay-ms: 5000
+  jwt:
+    secret: ${JWT_SECRET:lawforyou-dev-secret-change-in-production-must-be-32chars}
+    expiration-ms: 86400000   # 24 hours
 

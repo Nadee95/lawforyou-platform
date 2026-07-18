@@ -23,6 +23,13 @@ Authorization: Bearer {{jwt_token}}
 
 ###
 
+### List users through api-gateway — paginated (page 0, 10 per page, sorted by createdAt desc)
+GET {{apiGateway}}/api/users?page=0&size=10&sort=createdAt,desc
+X-Tenant-ID: {{tenantId}}
+Authorization: Bearer {{jwt_token}}
+
+###
+
 ### Search users by name / email / username
 GET {{userService}}/api/users/search?q=admin
 X-Tenant-ID: {{tenantId}}

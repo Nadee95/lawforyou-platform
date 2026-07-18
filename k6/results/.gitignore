@@ -1,0 +1,6 @@
+# k6 test results — ignored from version control
+# Run: k6 run --out json=results/load.json k6/scenarios/02_load.js
+*.json
+*.csv
+*.hprof
+
