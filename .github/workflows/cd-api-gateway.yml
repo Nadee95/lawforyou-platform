@@ -1,12 +1,7 @@
 name: CD — api-gateway
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "services/api-gateway/**"
-      - "helm/charts/api-gateway/**"
-      - ".github/workflows/cd-api-gateway.yml"
+  workflow_dispatch:
 
 env:
   IMAGE: ghcr.io/nadee95/lawforyou/api-gateway

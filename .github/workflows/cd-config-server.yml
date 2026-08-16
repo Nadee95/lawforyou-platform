@@ -1,12 +1,7 @@
 name: CD — config-server
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "services/config-server/**"
-      - "helm/charts/config-server/**"
-      - ".github/workflows/cd-config-server.yml"
+  workflow_dispatch:
 
 env:
   IMAGE: ghcr.io/nadee95/lawforyou/config-server

@@ -1,12 +1,7 @@
 name: CD — user-service
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "services/user-service/**"
-      - "helm/charts/user-service/**"
-      - ".github/workflows/cd-user-service.yml"
+  workflow_dispatch:
 
 env:
   IMAGE: ghcr.io/nadee95/lawforyou/user-service

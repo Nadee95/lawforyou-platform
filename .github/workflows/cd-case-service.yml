@@ -1,12 +1,7 @@
 name: CD — case-service
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "services/case-service/**"
-      - "helm/charts/case-service/**"
-      - ".github/workflows/cd-case-service.yml"
+  workflow_dispatch:
 
 env:
   IMAGE: ghcr.io/nadee95/lawforyou/case-service

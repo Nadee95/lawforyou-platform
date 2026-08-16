@@ -1,12 +1,7 @@
 name: CD — eureka-server
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "services/eureka-server/**"
-      - "helm/charts/eureka-server/**"
-      - ".github/workflows/cd-eureka-server.yml"
+  workflow_dispatch:
 
 env:
   IMAGE: ghcr.io/nadee95/lawforyou/eureka-server

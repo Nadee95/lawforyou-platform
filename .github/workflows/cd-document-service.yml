@@ -1,12 +1,7 @@
 name: CD — document-service
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "services/document-service/**"
-      - "helm/charts/document-service/**"
-      - ".github/workflows/cd-document-service.yml"
+  workflow_dispatch:
 
 env:
   IMAGE: ghcr.io/nadee95/lawforyou/document-service
