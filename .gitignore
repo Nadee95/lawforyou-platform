@@ -34,6 +34,6 @@ logs/
 # Helm — local credential overrides (use values-local.yaml.example as template)
 helm/infra/values-local.yaml
 
-# Helm — vendored chart tarballs (regenerate with: helm dep update helm/infra)
-helm/infra/charts/*.tgz
+# Keycloak — generated realm file (contains resolved secrets, never commit)
+infrastructure/keycloak/realm-export.json
 

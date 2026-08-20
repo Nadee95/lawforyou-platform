@@ -1,12 +1,7 @@
 name: CD — communication-service
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "services/communication-service/**"
-      - "helm/charts/communication-service/**"
-      - ".github/workflows/cd-communication-service.yml"
+  workflow_dispatch:
 
 env:
   IMAGE: ghcr.io/nadee95/lawforyou/communication-service

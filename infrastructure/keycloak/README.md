@@ -2,9 +2,22 @@
 
 ## Files
 
-| File | Purpose |
-|---|---|
-| `realm-export.json` | Full realm definition imported on first boot via `--import-realm` |
+| File                         | Purpose |
+|------------------------------|---|
+| `realm-export-template.json` | Realm definition template with `${ENV_VAR}` placeholders — imported on first boot via `--import-realm` |
+| `docker-entrypoint.sh`       | Container entrypoint — runs `envsubst` on the template then starts Keycloak |
+
+> ⚠️ `realm-export-template.json` uses `${...}` placeholders for secrets. Run `envsubst` (or Docker's env substitution) before importing, or pass the env vars directly to the container.
+
+## Setup
+
+```bash
+
+# Just run docker-compose — envsubst runs automatically inside the container
+docker-compose -f infrastructure/docker-compose/docker-compose.infra.yml up keycloak
+```
+
+> No manual `envsubst` needed. `docker-entrypoint.sh` resolves the template at container startup.
 
 ## Realm: `lawforyou`
 
@@ -21,7 +34,7 @@
 | Setting | Value |
 |---|---|
 | Client ID | `lawforyou-backend` |
-| Client Secret | `lawforyou-backend-secret` (dev only — change in production) |
+| Client Secret | Set via `KC_BACKEND_CLIENT_SECRET` env var |
 | Grant types | `password` (Phase 2 login proxy), `client_credentials` (Admin API), `authorization_code` (future frontend) |
 
 ## Custom JWT Claims (Protocol Mappers)
@@ -37,14 +50,15 @@
 
 | User | Password | Role | tenant_id |
 |---|---|---|---|
-| `admin@lawforyou.dev` | `Admin@12345` | ADMIN | `00000000-0000-0000-0000-000000000001` |
-| `lawyer@lawforyou.dev` | `Lawyer@12345` | LAWYER | `00000000-0000-0000-0000-000000000001` |
-| `client@lawforyou.dev` | `Client@12345` | CLIENT | `00000000-0000-0000-0000-000000000001` |
+| `admin@lawforyou.dev` | set via `KC_ADMIN_PASSWORD` | ADMIN | `00000000-0000-0000-0000-000000000001` |
+| `lawyer@lawforyou.dev` | set via `KC_LAWYER_PASSWORD` | LAWYER | `00000000-0000-0000-0000-000000000001` |
+| `client@lawforyou.dev` | set via `KC_CLIENT_PASSWORD` | CLIENT | `00000000-0000-0000-0000-000000000001` |
 
 ## How Import Works
 
-Keycloak starts with `start-dev --import-realm`. On first boot it reads all `*.json` files
-from `/opt/keycloak/data/import/` (mounted from this directory).
+1. `docker-entrypoint.sh` runs first — substitutes `${ENV_VAR}` placeholders via `envsubst`
+2. Writes the resolved JSON to an ephemeral volume at `/opt/keycloak/data/import/`
+3. Keycloak starts with `start-dev --import-realm` and reads the resolved file
 
 **If the realm already exists in the database, the import is skipped automatically.**
 To re-import after changes: delete the realm in the Admin UI → restart the container.

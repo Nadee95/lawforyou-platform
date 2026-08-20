@@ -33,11 +33,7 @@ public class SecurityConfig {
         return headerSecurityFilterChainConfigurer.build(http, auth -> auth
                 .requestMatchers(
                         "/actuator/health",
-                        "/actuator/info",
-                        "/actuator/prometheus",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html").permitAll()
+                        "/actuator/info").permitAll()
                 .anyRequest().authenticated()
         );
     }

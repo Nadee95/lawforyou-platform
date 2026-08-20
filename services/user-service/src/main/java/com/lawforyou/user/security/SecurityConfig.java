@@ -66,11 +66,10 @@ public class SecurityConfig {
                         "/api/auth/login",
                         "/api/auth/register",
                         "/api/auth/logout").permitAll()
-                // Public — infrastructure & observability
+                // Public — liveness/readiness probes only
                 .requestMatchers(
                         "/actuator/health",
-                        "/actuator/info",
-                        "/actuator/prometheus").permitAll()
+                        "/actuator/info").permitAll()
                 // Everything else requires authentication
                 .anyRequest().authenticated()
         );
