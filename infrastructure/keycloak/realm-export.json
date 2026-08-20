@@ -73,7 +73,7 @@
       "enabled": true,
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "lawforyou-backend-secret",
+      "secret": "${KC_BACKEND_CLIENT_SECRET}",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
@@ -300,7 +300,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "Admin@12345",
+          "value": "${KC_ADMIN_PASSWORD}",
           "temporary": false
         }
       ],
@@ -326,7 +326,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "Lawyer@12345",
+          "value": "${KC_LAWYER_PASSWORD}",
           "temporary": false
         }
       ],
@@ -352,7 +352,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "Client@12345",
+          "value": "${KC_CLIENT_PASSWORD}",
           "temporary": false
         }
       ],
